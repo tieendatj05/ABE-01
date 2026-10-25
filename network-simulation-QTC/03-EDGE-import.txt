@@ -1,0 +1,19 @@
+hostname EDGE-QTC
+no ip domain-lookup
+interface gigabitEthernet 0/0
+ description TO_CORE
+ ip address 10.10.254.2 255.255.255.252
+ ip nat inside
+ no shutdown
+exit
+interface gigabitEthernet 0/1
+ description TO_ISP
+ ip address 203.0.113.2 255.255.255.252
+ ip nat outside
+ no shutdown
+exit
+access-list 1 permit 10.10.0.0 0.0.255.255
+ip nat inside source list 1 interface gigabitEthernet 0/1 overload
+ip route 10.10.0.0 255.255.0.0 10.10.254.1
+ip route 0.0.0.0 0.0.0.0 203.0.113.1
+end

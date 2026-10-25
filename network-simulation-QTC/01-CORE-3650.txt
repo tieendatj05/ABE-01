@@ -1,0 +1,63 @@
+enable
+configure terminal
+hostname CORE-QTC
+no ip domain-lookup
+ip routing
+vlan 2
+ name LAN_PC
+vlan 3
+ name WIFI
+vlan 4
+ name CAMERA
+vlan 5
+ name MANAGEMENT
+vlan 999
+ name NATIVE_UNUSED
+exit
+interface vlan 1
+ ip address 10.10.1.1 255.255.255.224
+ no shutdown
+exit
+interface vlan 2
+ ip address 10.10.2.1 255.255.255.128
+ ip helper-address 10.10.1.2
+ no shutdown
+exit
+interface vlan 3
+ ip address 10.10.4.1 255.255.252.0
+ ip helper-address 10.10.1.2
+ no shutdown
+exit
+interface vlan 4
+ ip address 10.10.8.1 255.255.255.128
+ ip helper-address 10.10.1.2
+ no shutdown
+exit
+interface vlan 5
+ ip address 10.10.9.1 255.255.255.240
+ ip helper-address 10.10.1.2
+ no shutdown
+exit
+interface gigabitEthernet 1/0/1
+ description TO_EDGE_G0_0
+ no switchport
+ ip address 10.10.254.1 255.255.255.252
+ no shutdown
+exit
+interface range gigabitEthernet 1/0/2-5
+ description TRUNK_TO_FLOORS
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 1-5,999
+ no shutdown
+exit
+interface gigabitEthernet 1/0/6
+ description DHCP_SERVER
+ switchport mode access
+ switchport access vlan 1
+ spanning-tree portfast
+ no shutdown
+exit
+ip route 0.0.0.0 0.0.0.0 10.10.254.2
+end
+write memory

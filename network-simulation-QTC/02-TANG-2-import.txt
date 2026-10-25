@@ -1,0 +1,54 @@
+hostname SW-TANG-2
+no ip domain-lookup
+vlan 2
+ name LAN_PC
+vlan 3
+ name WIFI
+vlan 4
+ name CAMERA
+vlan 5
+ name MANAGEMENT
+vlan 999
+ name NATIVE_UNUSED
+exit
+interface fastEthernet 0/1
+ description TRUNK_TO_CORE
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 1-5,999
+ no shutdown
+exit
+interface range fastEthernet 0/2-8
+ switchport mode access
+ switchport access vlan 2
+ spanning-tree portfast
+ no shutdown
+exit
+interface range fastEthernet 0/9-16
+ switchport mode access
+ switchport access vlan 3
+ spanning-tree portfast
+ no shutdown
+exit
+interface range fastEthernet 0/17-23
+ switchport mode access
+ switchport access vlan 4
+ spanning-tree portfast
+ no shutdown
+exit
+interface fastEthernet 0/24
+ switchport mode access
+ switchport access vlan 5
+ spanning-tree portfast
+ no shutdown
+exit
+interface fastEthernet 0/2
+ description TEST_CLIENT_VLAN_3
+ switchport access vlan 3
+exit
+interface vlan 5
+ ip address 10.10.9.11 255.255.255.240
+ no shutdown
+exit
+ip default-gateway 10.10.9.1
+end

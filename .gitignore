@@ -1,0 +1,15 @@
+node_modules/
+data/
+tls/
+dist/
+target/
+data-demo/
+release/
+
+.test-runs/
+demo-abe-proof/
+
+# logs & secrets
+*.log
+**/admin-secrets.json
+**/admin-package.txt
