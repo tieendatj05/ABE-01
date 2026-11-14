@@ -1,0 +1,53 @@
+{
+  "cauHinh": {
+    "node": "v24.19.0",
+    "jar": "medabe-storage",
+    "ghi": "máy chủ thử cục bộ (loopback), 3 nút cùng máy, mật khẩu PBKDF2 20.000 vòng"
+  },
+  "E1_xinVeKhoaVaiTroKhoa": "bị từ chối: DENY_NO_ENTITLED_ATTRIBUTES",
+  "E1": {
+    "tinHieuToiHanChe_ms": 20,
+    "hanCheToiBiTuChoiDocDauTien_ms": 14,
+    "tongTuLucGhiTinHieu_ms": 142
+  },
+  "epoch": {
+    "MED:Khoa:Mat": 1,
+    "MED:Role:BacSi": 1
+  },
+  "E2_banMaDaSaoChep_khoaCu_moDuoc": true,
+  "E3_hoSoMoi_khoaCu_moDuoc": false,
+  "E4": {
+    "cuaSoTruocKhiBocLai_khoaCuMoDuoc": true,
+    "sauBocLai_banMaHienHanh_khoaCuMoDuoc": false,
+    "thoiGianMoVaBocLaiMotHoSo_ms": 667
+  },
+  "nhatKy": [
+    "v2.account.restore userId=u-2fddaf5a-e9eb-4cc2-b8be-021878e1abc4 han-che-boi=u-99805b23-683f-468b-81c9-efc32e92b122 ly-do=Da goi lai chu tai khoan va xac minh d",
+    "v2.account.restrict userId=u-2fddaf5a-e9eb-4cc2-b8be-021878e1abc4 role=BAC_SI con-lai=Author da-giu=3 epoch-tang=[MED:Role:BacSi, MED:Khoa:Mat] thu-hoi-phien=fa",
+    "v2.risk.signal userId=u-2fddaf5a-e9eb-4cc2-b8be-021878e1abc4 kind=ANOMALOUS_READ_VOLUME nguon=GIA_LAP chi-tiet=GIA LAP: doc 300 ho so trong 5 phut tu may la"
+  ],
+  "E6": {
+    "hanChe_API": {
+      "trungVi_ms": 12,
+      "p95_ms": 12,
+      "nhoNhat_ms": 10,
+      "lonNhat_ms": 12,
+      "soLan": 10
+    },
+    "doc_bi_tu_choi_sau_han_che": {
+      "trungVi_ms": 12,
+      "p95_ms": 13,
+      "nhoNhat_ms": 11,
+      "lonNhat_ms": 13,
+      "soLan": 10
+    },
+    "khoiPhuc_API": {
+      "trungVi_ms": 11,
+      "p95_ms": 14,
+      "nhoNhat_ms": 10,
+      "lonNhat_ms": 14,
+      "soLan": 10
+    },
+    "ghiChu": "đo trong tiến trình thử nghiệm, máy chủ loopback; không gồm độ trễ mạng thật"
+  }
+}

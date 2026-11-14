@@ -1,0 +1,48 @@
+{
+  "cauHinh": {
+    "node": "v24.19.0",
+    "ghi": "máy chủ thử cục bộ, hồ sơ giả"
+  },
+  "truocKhiVa": {
+    "ngay": "2026-11-13",
+    "ketQuaMayChu": "OK (được chấp nhận) — PUT /api/headers/{id} chỉ kiểm \"policy mới là policy chuẩn của MỘT mục nào đó\"",
+    "hauQua": "bác sĩ Nhi mở hồ sơ Hành chính: \"Không có header khoá <id>\" (GET /api/headers lọc theo policy header mới)",
+    "phamVi": "chỉ header chung v3 (lô nhập qua saveMany: Hành chính và dữ liệu nhập hàng loạt); bản ghi v2 đã bị chặn từ trước bởi checkPolicyString"
+  },
+  "W1_tanCong": {
+    "policyDung": "Author OR Role:TiepDon OR Role:BacSi ... (Hành chính)",
+    "policyGiaMao": "MED:Author:u-118ba261-e24c-4fd8-a888-142b35c6ebbc OR (MED:Role:BacSi AND MED:Khoa:Mat) OR (MED:Role:GiamSat AND MED:Auth:MFA)",
+    "ketQuaMayChu": "POLICY_MISMATCH"
+  },
+  "W1_hauQua_BacSiNhi": "MỞ ĐƯỢC",
+  "W2_epochCu": "EPOCH_STALE",
+  "W3": {
+    "epochTruoc": 0,
+    "epochSau": 1,
+    "tiepDonMoVaBocLai": true,
+    "bacSiMatNhiVanMoDuoc": true
+  },
+  "W4a_taiHien": {
+    "ketQuaMayChu": "OK (được chấp nhận)",
+    "bacSiNhi": "KHÔNG MỞ ĐƯỢC: Giải mã thất bại: khoá lỗi thời hoặc bản ghi bị can thiệp",
+    "nhatKyRewrap": [
+      "v2.header.rewrap id=fb3e62d0 policy-giu-nguyen=false thiet-bi=8f05dd181ed669c9",
+      "v2.header.rewrap id=fb3e62d0 policy-giu-nguyen=true thiet-bi=d6c84e831e656d25"
+    ]
+  },
+  "W4b_khacPhuc": {
+    "soPhienBanLichSu": 2,
+    "nguoiGhiDe": "bsmat01 (truy được từ nhật ký + lịch sử)",
+    "thieuLyDo": "REASON_REQUIRED",
+    "bacSiNhiSauKhoiPhuc": "MỞ ĐƯỢC",
+    "nhatKy": [
+      "v2.header.rewrap id=fb3e62d0 policy-giu-nguyen=false thiet-bi=8f05dd181ed669c9",
+      "v2.header.rewrap id=fb3e62d0 policy-giu-nguyen=true thiet-bi=d6c84e831e656d25",
+      "v2.header.restore id=fb3e62d0 phien-ban=0 ly-do=\"Khoi phuc header bi ghi de bang khoa boc rac (kiem thu GIA LA"
+    ]
+  },
+  "W4c_phongBiMotBanGhi": {
+    "nguoiKhacQuanTri": "DENY_ROLE_NOT_ALLOWED",
+    "saukhoiPhuc": "người đọc hợp lệ mở được (lại bọc lại theo epoch hiện hành)"
+  }
+}

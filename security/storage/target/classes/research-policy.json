@@ -1,0 +1,548 @@
+{
+  "version": "2.3.0",
+  "description": "Ma tran quyen CP-ABE + ABAC. NGUON DUY NHAT cho (1) quyet dinh ABAC o backend va (2) policy giai ma CP-ABE (sinh tu cung ma tran). v1.1.0: mo rong cho app van hanh (them KTV, Ket luan, cac muc lankham/tiensu/thecuc/canlamsang/ketluan, khoa TMH/RHM); 3 muc nghien cuu (hanhchinh, lamsang.Nhi, lamsang.Mat) giu nguyen hanh vi cho Tiep don / BS Nhi / BS Mat / Quan tri. v2.0.0: them mo hinh TAC GIA theo TAI KHOAN (MED:Author:<userId>), bac si nhieu khoa, vai tro NHAP_LIEU, danh muc khoa co ma on dinh, anh theo vung. v2.1.0: them khoa ThanKinh (anh nao MRI). Mo hinh \"app\" ap dung cho app dang dung (/api/records qua cau noi); \"sections\" giu nguyen cho luong doi chung A/B. v2.2.0: them vai tro GIAM_SAT (doc TAT CA, khong ghi, khong quan tri): nhanh Role:GiamSat trong policy MOI loai du lieu app; han che nang cao (1 thiet bi, phien ngan, mat khau dai, khong truy cap tu xa, ghi ly do moi lan doc, can QUAN TRI KHAC duyet khi cap/doi mat khau). Ban ghi cu chua co nhanh nay cho toi khi duoc boc lai. v2.3.0: MFA (TOTP) la mot THUOC TINH ABE: nhanh doc cua GIAM_SAT doi thanh (Role:GiamSat AND Auth:MFA); thuoc tinh MED:Auth:MFA chi duoc cap cho phien VUA xac thuc ma TOTP dung (con han mfaFreshMinutes).",
+  "roles": {
+    "TIEP_DON": {
+      "label": "Tiep don",
+      "attributes": [
+        "Role:TiepDon"
+      ],
+      "needsKhoa": false
+    },
+    "BAC_SI": {
+      "label": "Bac si",
+      "attributes": [
+        "Role:BacSi"
+      ],
+      "needsKhoa": true,
+      "appAttributes": [],
+      "acceptsKhoa": true
+    },
+    "KTV": {
+      "label": "Ky thuat vien xet nghiem",
+      "attributes": [
+        "Role:KTV",
+        "Khoa:XetNghiem"
+      ],
+      "needsKhoa": false
+    },
+    "KET_LUAN": {
+      "label": "Bac si ket luan",
+      "attributes": [
+        "Role:KetLuan"
+      ],
+      "needsKhoa": false,
+      "appAttributes": [
+        "Role:BacSi"
+      ],
+      "acceptsKhoa": true
+    },
+    "QUAN_TRI": {
+      "label": "Quan tri",
+      "attributes": [],
+      "needsKhoa": false
+    },
+    "NHAP_LIEU": {
+      "label": "Nhap lieu",
+      "attributes": [
+        "Role:NhapLieu"
+      ],
+      "appAttributes": [],
+      "needsKhoa": false,
+      "acceptsKhoa": false
+    },
+    "GIAM_SAT": {
+      "label": "Giam sat (doc tat ca, khong ghi)",
+      "attributes": [],
+      "appAttributes": [
+        "Role:GiamSat"
+      ],
+      "needsKhoa": false,
+      "acceptsKhoa": false,
+      "maxDevices": 1,
+      "idleMinutes": 10,
+      "sessionHours": 4,
+      "minPasswordLength": 14,
+      "remoteAllowed": false,
+      "readReasonRequired": true,
+      "requiresSecondApproval": true,
+      "requiresMfa": true,
+      "mfaFreshMinutes": 10
+    }
+  },
+  "khoas": [
+    "Nhi",
+    "Mat",
+    "TMH",
+    "RHM"
+  ],
+  "sections": {
+    "hanhchinh": {
+      "type": "hanhchinh",
+      "khoa": "KSK",
+      "label": "Hanh chinh",
+      "read": [
+        {
+          "role": "TIEP_DON"
+        },
+        {
+          "role": "BAC_SI"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "TIEP_DON"
+        }
+      ],
+      "import": [
+        {
+          "role": "TIEP_DON"
+        }
+      ]
+    },
+    "lankham": {
+      "type": "lankham",
+      "khoa": "KSK",
+      "label": "Lan kham",
+      "read": [
+        {
+          "role": "BAC_SI"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "BAC_SI"
+        }
+      ],
+      "import": [
+        {
+          "role": "BAC_SI"
+        }
+      ]
+    },
+    "tiensu": {
+      "type": "tiensu",
+      "khoa": "KSK",
+      "label": "Tien su",
+      "read": [
+        {
+          "role": "BAC_SI"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "BAC_SI"
+        }
+      ],
+      "import": [
+        {
+          "role": "BAC_SI"
+        }
+      ]
+    },
+    "thecuc": {
+      "type": "thecuc",
+      "khoa": "KSK",
+      "label": "The luc",
+      "read": [
+        {
+          "role": "BAC_SI"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "BAC_SI"
+        }
+      ],
+      "import": [
+        {
+          "role": "BAC_SI"
+        }
+      ]
+    },
+    "lamsang.Nhi": {
+      "type": "lamsang",
+      "khoa": "Nhi",
+      "label": "Lam sang Nhi",
+      "read": [
+        {
+          "role": "BAC_SI",
+          "khoa": "Nhi"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "BAC_SI",
+          "khoa": "Nhi"
+        }
+      ],
+      "import": [
+        {
+          "role": "BAC_SI",
+          "khoa": "Nhi"
+        }
+      ]
+    },
+    "lamsang.Mat": {
+      "type": "lamsang",
+      "khoa": "Mat",
+      "label": "Lam sang Mat",
+      "read": [
+        {
+          "role": "BAC_SI",
+          "khoa": "Mat"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "BAC_SI",
+          "khoa": "Mat"
+        }
+      ],
+      "import": [
+        {
+          "role": "BAC_SI",
+          "khoa": "Mat"
+        }
+      ]
+    },
+    "lamsang.TMH": {
+      "type": "lamsang",
+      "khoa": "TMH",
+      "label": "Lam sang Tai Mui Hong",
+      "read": [
+        {
+          "role": "BAC_SI",
+          "khoa": "TMH"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "BAC_SI",
+          "khoa": "TMH"
+        }
+      ],
+      "import": [
+        {
+          "role": "BAC_SI",
+          "khoa": "TMH"
+        }
+      ]
+    },
+    "lamsang.RHM": {
+      "type": "lamsang",
+      "khoa": "RHM",
+      "label": "Lam sang Rang Ham Mat",
+      "read": [
+        {
+          "role": "BAC_SI",
+          "khoa": "RHM"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "BAC_SI",
+          "khoa": "RHM"
+        }
+      ],
+      "import": [
+        {
+          "role": "BAC_SI",
+          "khoa": "RHM"
+        }
+      ]
+    },
+    "canlamsang": {
+      "type": "canlamsang",
+      "khoa": "XetNghiem",
+      "label": "Can lam sang",
+      "read": [
+        {
+          "role": "KTV"
+        },
+        {
+          "role": "BAC_SI"
+        },
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "write": [
+        {
+          "role": "KTV"
+        }
+      ],
+      "import": [
+        {
+          "role": "KTV"
+        }
+      ]
+    },
+    "ketluan": {
+      "type": "ketluan",
+      "khoa": "KSK",
+      "label": "Ket luan",
+      "read": [
+        {
+          "role": "KET_LUAN"
+        },
+        {
+          "role": "BAC_SI"
+        }
+      ],
+      "write": [
+        {
+          "role": "KET_LUAN"
+        }
+      ],
+      "import": [
+        {
+          "role": "KET_LUAN"
+        }
+      ]
+    }
+  },
+  "permissions": {
+    "schedule.manage": [
+      "QUAN_TRI"
+    ],
+    "user.manage": [
+      "QUAN_TRI"
+    ],
+    "audit.read": [
+      "QUAN_TRI"
+    ]
+  },
+  "afterHoursAllowed": [
+    "status.read",
+    "auth.challenge",
+    "auth.login",
+    "auth.logout",
+    "auth.me",
+    "schedule.manage"
+  ],
+  "khoaCatalog": [
+    {
+      "code": "Nhi",
+      "label": "Nhi",
+      "shared": false,
+      "aliases": [
+        "nhi",
+        "nhi khoa",
+        "khoa nhi"
+      ]
+    },
+    {
+      "code": "Mat",
+      "label": "Mắt",
+      "shared": false,
+      "aliases": [
+        "mắt",
+        "mat",
+        "nhãn khoa",
+        "nhan khoa",
+        "khoa mắt",
+        "khoa mat"
+      ]
+    },
+    {
+      "code": "TMH",
+      "label": "Tai Mũi Họng",
+      "shared": false,
+      "aliases": [
+        "tmh",
+        "tai mũi họng",
+        "tai mui hong",
+        "khoa tai mũi họng"
+      ]
+    },
+    {
+      "code": "RHM",
+      "label": "Răng Hàm Mặt",
+      "shared": false,
+      "aliases": [
+        "rhm",
+        "răng hàm mặt",
+        "rang ham mat",
+        "khoa răng hàm mặt"
+      ]
+    },
+    {
+      "code": "ThanKinh",
+      "label": "Thần kinh",
+      "shared": false,
+      "aliases": [
+        "thankinh",
+        "thần kinh",
+        "than kinh",
+        "khoa thần kinh",
+        "khoa than kinh",
+        "nội thần kinh",
+        "noi than kinh",
+        "neurology"
+      ]
+    },
+    {
+      "code": "KSK",
+      "label": "Khám chung (KSK)",
+      "shared": true,
+      "aliases": [
+        "ksk",
+        "khám chung",
+        "kham chung",
+        "khám tổng quát",
+        "kham tong quat"
+      ]
+    },
+    {
+      "code": "XetNghiem",
+      "label": "Xét nghiệm",
+      "shared": true,
+      "aliases": [
+        "xetnghiem",
+        "xét nghiệm",
+        "xet nghiem",
+        "cận lâm sàng",
+        "can lam sang"
+      ]
+    }
+  ],
+  "app": {
+    "version": "1",
+    "authorAttribute": "Author",
+    "note": "Mot nhanh \"Author\" (MED:Author:<userId> - userId lay tu phien da xac thuc, backend cap) HOAC cac nhanh vai tro. \"Role:BacSi&Khoa\" = voi MOI khoa cua ban ghi: (MED:Role:BacSi AND MED:Khoa:<khoa>). Khong co nhanh \"moi bac si\" cho muc lam sang, khong co nhanh \"ket luan doc moi khoa\", khong co nhanh may tao ban ghi, khong co pha-vo-kinh. Quyen DOC o backend = tap thuoc tinh cua tai khoan THOA policy nay (cung mot nguon, khong co danh sach vai tro doc rieng). v2.2.0: moi loai du lieu co them nhanh \"Role:GiamSat\" (vai tro doc-tat-ca, khong co quyen ghi/xoa, khong phai Quan tri); day la nhanh doc rong DUY NHAT va chi dung cho vai tro nay. v2.3.0: token \"A+B\" = nhanh (A AND B) gom cac thuoc tinh don; nhanh Giam sat = (Role:GiamSat AND Auth:MFA).",
+    "types": {
+      "hanhchinh": {
+        "khoa": "none",
+        "identity": true,
+        "policy": [
+          "Author",
+          "Role:TiepDon",
+          "Role:BacSi",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "TIEP_DON",
+          "NHAP_LIEU"
+        ]
+      },
+      "lankham": {
+        "khoa": "one",
+        "policy": [
+          "Author",
+          "Role:BacSi&Khoa",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "BAC_SI",
+          "NHAP_LIEU"
+        ]
+      },
+      "tiensu": {
+        "khoa": "one",
+        "policy": [
+          "Author",
+          "Role:BacSi&Khoa",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "BAC_SI",
+          "NHAP_LIEU"
+        ]
+      },
+      "thecuc": {
+        "khoa": "one",
+        "policy": [
+          "Author",
+          "Role:BacSi&Khoa",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "BAC_SI",
+          "NHAP_LIEU"
+        ]
+      },
+      "lamsang": {
+        "khoa": "one",
+        "policy": [
+          "Author",
+          "Role:BacSi&Khoa",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "BAC_SI",
+          "NHAP_LIEU"
+        ]
+      },
+      "canlamsang": {
+        "khoa": "one",
+        "policy": [
+          "Author",
+          "Role:BacSi&Khoa",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "KTV",
+          "NHAP_LIEU"
+        ]
+      },
+      "ketluan": {
+        "khoa": "one",
+        "policy": [
+          "Author",
+          "Role:BacSi&Khoa",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "KET_LUAN",
+          "NHAP_LIEU"
+        ]
+      },
+      "anh": {
+        "khoa": "none",
+        "policy": [
+          "Author",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "NHAP_LIEU"
+        ]
+      },
+      "vung": {
+        "khoa": "many",
+        "policy": [
+          "Author",
+          "Role:BacSi&Khoa",
+          "Role:GiamSat+Auth:MFA"
+        ],
+        "write": [
+          "NHAP_LIEU"
+        ]
+      }
+    }
+  }
+}

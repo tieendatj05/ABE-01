@@ -1,0 +1,17 @@
+{
+	"appId": "vn.medabe.phuhuynh",
+	"appName": "Sức khỏe học đường",
+	"webDir": "../parent/dist-mobile",
+	"backgroundColor": "#0a6cc4",
+	"server": {
+		"androidScheme": "https"
+	},
+	"ios": {
+		"contentInset": "never",
+		"scheme": "KSK"
+	},
+	"android": {
+		"allowMixedContent": false
+	},
+	"packageClassList": []
+}

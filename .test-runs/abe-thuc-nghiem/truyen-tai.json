@@ -1,0 +1,63 @@
+{
+  "cauHinh": {
+    "ghi": "máy nghe lén = proxy TCP chuyển tiếp nguyên byte trên loopback; chặng nút cấp khoá cũng là HTTPS (cùng thư viện TLS) nhưng không đặt máy nghe lén ở đó"
+  },
+  "chang1_MayKhach_Spring_HTTPS": {
+    "baoGuiLen": 3846,
+    "baoNhanVe": 4627,
+    "thayDuoc": [],
+    "bytDau": "0x16 (TLS handshake)",
+    "httpThuong": "HTTP 400 (bị từ chối)",
+    "tls": {
+      "proto": "TLSv1.3",
+      "cipher": "TLS_AES_256_GCM_SHA384"
+    },
+    "ketLuan": "HTTPS che toàn bộ URL, header (kể cả token), thân (kể cả mật khẩu, họ tên, CCCD) khỏi kẻ nghe lén trên dây; máy khách chỉ chấp nhận chứng chỉ của CA đã ghim"
+  },
+  "chang2_MayKhach_CongLienThong_HTTP": {
+    "baoGuiLen": 21941,
+    "baoNhanVe": 1228,
+    "noiDungHoSoLo": [],
+    "sieuDuLieuThayDuoc": {
+      "dongYeuCau": "POST /byt/submit HTTP/1.1",
+      "thayChinhSach": "MED:Role:BacSi#2026W46.0",
+      "thayLoaiMuc": true,
+      "thayChiMucMu": true,
+      "thayMaThietBi": true,
+      "thayChungChiThietBi": true,
+      "thayTokenPhien": false
+    },
+    "ketLuan": "Lớp ABE giữ bí mật NỘI DUNG (họ tên, CCCD, kết quả) ngay cả trên đường HTTP; nhưng HTTP không che siêu dữ liệu, không xác thực máy chủ cho kẻ ở giữa, không mã hoá kết nối."
+  },
+  "chang2_phatLaiVaSua": {
+    "phatLai": "401 {\"error\":\"yêu cầu đã được dùng (phát lại)\"}",
+    "suaThanYeuCau": "401 {\"error\":\"chữ ký yêu cầu không hợp lệ\"}",
+    "ghi": "cổng chặn phát lại bằng chữ ký từng yêu cầu + cửa sổ thời gian; chữ ký phủ cả băm thân yêu cầu"
+  },
+  "chang2_SauKhiVa_CongLienThong_HTTPS": {
+    "baoGuiLen": 23542,
+    "baoNhanVe": 4495,
+    "trenDay": {
+      "thayChinhSach": false,
+      "thayLoaiMuc": false,
+      "thayChiMucMu": false,
+      "thayChungChiThietBi": false,
+      "thayDuongDan": false
+    },
+    "httpThuong": "HTTP 0 (bị từ chối)",
+    "khongGhimCA": "self-signed certificate in certificate chain",
+    "ketLuan": "Chạy cổng liên thông bằng HTTPS (cùng chứng chỉ với máy chủ): chính sách, loại mục, chỉ mục mù, chứng chỉ thiết bị và đường dẫn không còn thấy được trên dây; máy khách không ghim CA không kết nối được. Chữ ký từng yêu cầu vẫn giữ làm lớp chống phát lại độc lập."
+  },
+  "chang3_AppWeb_HTTP": {
+    "phucVuBangHTTP": true,
+    "coSRI": false,
+    "coCSP": true,
+    "ketLuan": "Mã JS tải qua HTTP nên không có bảo đảm toàn vẹn; CSP chỉ giới hạn nguồn script SAU KHI trang được tải, không chống sửa chính trang qua HTTP. Giải mã ABE chạy trong trình duyệt ⇒ đây là điểm yếu của MỌI ứng dụng mã hoá phía máy khách phân phối qua web (không riêng ABE)."
+  },
+  "chang4_nhatKy": {
+    "springLogByte": 7905,
+    "auditByte": 5295,
+    "hoTenCCCDCanaryTrongLog": [],
+    "trongNhatKyQuanTri": []
+  }
+}

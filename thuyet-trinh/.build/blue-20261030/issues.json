@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "presentation": {
+    "id": "1I-EuKMUMwGYRzvNSt-SzQuWNGgLUX-g_40xdI-Hqy-o",
+    "title": "MedABE_ABE_15_trang_thuyet_trinh",
+    "revisionId": "dHxnU0Tymn3ROQ",
+    "slideCount": 10
+  },
+  "snapshotSha256": "ed1ed0c9c0cf7a864aa45c224d5f862fcb8e6de2f698c038dc9b286a499bff92",
+  "summary": {
+    "totalIssues": 0,
+    "reportedIssues": 0,
+    "truncated": false,
+    "bySeverity": {},
+    "byCode": {}
+  },
+  "issues": []
+}

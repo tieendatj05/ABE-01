@@ -1,0 +1,744 @@
+{
+  "grants": {
+    "Xr4tcevUK2lB": {
+      "name": "Tiep don Kiem Thu",
+      "attrs": [
+        "MED:Role:TiepDon"
+      ]
+    },
+    "gtQQecE_tt2l": {
+      "name": "Tiep don Kiem Thu",
+      "attrs": [
+        "MED:Role:TiepDon"
+      ]
+    },
+    "4Tcpc7rc6SC4": {
+      "name": "Tiep don Kiem Thu",
+      "attrs": [
+        "MED:Role:TiepDon"
+      ]
+    }
+  },
+  "holders": {
+    "418982388844a791fd070e48d152c264": {
+      "gid": "418982388844a791fd070e48d152c264",
+      "name": "pham tien dat",
+      "token": "zkdU_eK0kIDy9b1YiTwdtDekCAtdVbX-",
+      "devicePub": "048e3615635d407f4649b0c940751e938f43f22358f145ab4e2e385e21bed8888b1ee3608bc28ce0c9f7fe9fd18e6a393cddc8f6a3cac05cf10d829c7d836ebba0",
+      "deviceId": "ef3af93437b0d582",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "a457c11ddee6f58a881917031e3f76f7": {
+      "gid": "a457c11ddee6f58a881917031e3f76f7",
+      "name": "Phạm Tiến Đạt",
+      "token": "sUIZANrctLvuLyNiwmFC1Mg--nBoUvAg",
+      "devicePub": "041238257de70b1656f9b9b3f42b03a13921ac00f4a5c6c8e623dd6d5bfb78c3f0d7ac717d367ff04652159ea807cad723ef291515b6c09c0848f0f49fcd0060ad",
+      "deviceId": "2be25cd4e6e4c89f",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "382f4607a6cae31000df3f11a4eb227a": {
+      "gid": "382f4607a6cae31000df3f11a4eb227a",
+      "name": "May thu parent",
+      "token": "giDooSAN6CVGY46rXl20GcyvHwwzV0Xq",
+      "devicePub": "04d0147ba0f8e6b76021ad26cf7400a7e14bfb26ae111cbd924d15196dcdb4006b5b8e233cb3a886449ec0f8f2fb421497c4beb1c8800ded1e5065bda9a577e666",
+      "deviceId": "38bc0d0fdb26bdfd",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "78f27bc6c95021ed29ef765af4f4f599": {
+      "gid": "78f27bc6c95021ed29ef765af4f4f599",
+      "name": "LAPTOP-R6654TMQ",
+      "token": "k4KADHTDm19GzHlGd5TuXv-32uj4Qlk1",
+      "devicePub": "04f19718a75e0a2f8e4ab5af43fd370f0b8f8d5cd5d82913767786a8096317e640aee7416e24c83dd089dc13e01534525aa153c54b7a5ea34b3c1e508e399bb96a",
+      "deviceId": "91cba593aaeaf584",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "ac7cbe9b2e4635d5316b85ec068314e2": {
+      "gid": "ac7cbe9b2e4635d5316b85ec068314e2",
+      "name": "LAPTOP-R6654TMQ",
+      "token": "mEC8PC_90sQdVFrOOECjpge1T6Zx7hzN",
+      "devicePub": "04be005caa64d729a6c70014bb5c5bb1a838c1899e0c80cf444e7d71765fbe33ec61917bd4f5e28ab88c342f7252f9ba9c26576a43809853a4d07efa2db5d9e163",
+      "deviceId": "184e160f33ca7ced",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "3af9d2547e5a30eb0e401b013e1589e5": {
+      "gid": "3af9d2547e5a30eb0e401b013e1589e5",
+      "name": "May nap du lieu mau",
+      "token": "u79BWOHdvdmyDuhIDUkYAJ0M6LnzMoF6",
+      "devicePub": "049079ad92b800bd861d051b279e5d4560b48a7cc23ea8fa9982a0b07023dbbc2540d20808a0ce0829e9172e69e3bbb96427ae7e8e97daed1c0811a3c656db206c",
+      "deviceId": "f926f32abfb1f5cb",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "2154dcf2810bda6d7e74586c53096459": {
+      "gid": "2154dcf2810bda6d7e74586c53096459",
+      "name": "May kiem tra",
+      "token": "0pla4vD9gh0p2_3gDcsDFRX6YjkHkLat",
+      "devicePub": "044a93244b6049e1150f9261c138bc166c9b4a9d327ce6c8b8bf75bf45427291df4c04b083bf6a6e8f2c8d55bdf3f26c59beaabdbfceb1ca2c199410bbc272b2b6",
+      "deviceId": "44e3118381c73fbd",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "7c4eccfba75c22eb73128da0e036d706": {
+      "gid": "7c4eccfba75c22eb73128da0e036d706",
+      "name": "May dong bo trang thai",
+      "token": "qBT25yQs3ZqRNOde81HTdWJwhSz4bpEd",
+      "devicePub": "04a4cc06c087e74b928671bf61378582d336530b2ad8fd821b8c1fd4a76742b5668de0bb92f22aa56f13f9e5c8913c7156ae2988772961340ec75e2a7843164d63",
+      "deviceId": "b96f31e3f34b8d3d",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "c17d105138b11cd1eee6c59811c8b026": {
+      "gid": "c17d105138b11cd1eee6c59811c8b026",
+      "name": "May kiem tra",
+      "token": "QZsLMWphO35tdl0450Ty2qhVReIKjBlO",
+      "devicePub": "04d985eee05d3022a704153cfe1581d13fe0f12bc18fa6cc36a84d24652b8573970531f4a2476fd0e43a3dd7cc39d6723970950544c08114fd48cc3b3d788bf592",
+      "deviceId": "ba343ceda3eb3309",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    },
+    "6da3f7267a4486b16a9a79c0136cf68a": {
+      "gid": "6da3f7267a4486b16a9a79c0136cf68a",
+      "name": "May mau phu huynh",
+      "token": "IN2QNIopR4frYWcSjMvQJyY80uVQA628",
+      "devicePub": "041517ce33c52ae037e8083d9810bf126d1de72b60ccbff9b7613dc25a2fe76246b51a06e7ec6c25d5b61b2bc63c3ac406b0ece1a9431a723ac7dc93fc30705381",
+      "deviceId": "9bc2d62117e7d430",
+      "attrs": [
+        "MED:Role:TiepDon",
+        "MED:Role:BacSi",
+        "MED:Role:KTV",
+        "MED:Role:KetLuan",
+        "MED:Khoa:Nhi",
+        "MED:Khoa:Mat",
+        "MED:Khoa:TMH",
+        "MED:Khoa:RHM",
+        "MED:Khoa:XetNghiem"
+      ],
+      "disabled": false
+    }
+  },
+  "breakGlass": [],
+  "audit": [
+    {
+      "seq": 1,
+      "ts": "2026-10-14T01:54:01.498Z",
+      "actor": "admin",
+      "action": "grant.create",
+      "detail": "Tiep don Kiem Thu [Role:TiepDon]",
+      "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "fe4bd44e6bd996413b474cd3d224673d3c7102c965d4e040a661859ffa66b9f0"
+    },
+    {
+      "seq": 2,
+      "ts": "2026-10-14T01:57:01.148Z",
+      "actor": "admin",
+      "action": "grant.create",
+      "detail": "Tiep don Kiem Thu [Role:TiepDon]",
+      "prev": "fe4bd44e6bd996413b474cd3d224673d3c7102c965d4e040a661859ffa66b9f0",
+      "hash": "556e8486e5d59ebb597df19aaab1a9c749f060a8c3face84d3676b8510950cdc"
+    },
+    {
+      "seq": 3,
+      "ts": "2026-10-14T02:03:46.827Z",
+      "actor": "admin",
+      "action": "grant.create",
+      "detail": "Tiep don Kiem Thu [Role:TiepDon]",
+      "prev": "556e8486e5d59ebb597df19aaab1a9c749f060a8c3face84d3676b8510950cdc",
+      "hash": "8a0988c9774deed9db254a34cf7e6dbe01ff397b1efbd4a5bbd4d176760b9ced"
+    },
+    {
+      "seq": 4,
+      "ts": "2026-10-14T02:50:28.569Z",
+      "actor": "pham tien dat",
+      "action": "claim-open",
+      "detail": "gid=41898238… 9 thuộc tính mặc định",
+      "prev": "8a0988c9774deed9db254a34cf7e6dbe01ff397b1efbd4a5bbd4d176760b9ced",
+      "hash": "2c65b3c34007b7a1e4a6cafbbe5f02b7a45ce69f414dc39d987eb05ba11dd2ff"
+    },
+    {
+      "seq": 5,
+      "ts": "2026-10-14T05:14:38.771Z",
+      "actor": "Phạm Tiến Đạt",
+      "action": "claim-open",
+      "detail": "gid=a457c11d… 9 thuộc tính mặc định",
+      "prev": "2c65b3c34007b7a1e4a6cafbbe5f02b7a45ce69f414dc39d987eb05ba11dd2ff",
+      "hash": "eb90c2c0b6f9c3d2d5a5b8e6b17f003fd3eb57dceb7c08e556feaf412833db68"
+    },
+    {
+      "seq": 6,
+      "ts": "2026-10-14T07:47:14.290Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "eb90c2c0b6f9c3d2d5a5b8e6b17f003fd3eb57dceb7c08e556feaf412833db68",
+      "hash": "db016d7632ee1a683fe6460df2236e1bd7d15d6c5c27b2a745e9bac87e947956"
+    },
+    {
+      "seq": 7,
+      "ts": "2026-10-14T07:47:14.291Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "db016d7632ee1a683fe6460df2236e1bd7d15d6c5c27b2a745e9bac87e947956",
+      "hash": "e1f3eb28b71a6c0aef4f992ef0fc1e49297fcdee35336571706bd25b9d3aa11c"
+    },
+    {
+      "seq": 8,
+      "ts": "2026-10-14T07:47:15.341Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "e1f3eb28b71a6c0aef4f992ef0fc1e49297fcdee35336571706bd25b9d3aa11c",
+      "hash": "3b266d33452d93c5bf0bf2c287d5aff2cd8c6440f0e70538e94d69fa42ee3ab8"
+    },
+    {
+      "seq": 9,
+      "ts": "2026-10-14T07:47:15.342Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "3b266d33452d93c5bf0bf2c287d5aff2cd8c6440f0e70538e94d69fa42ee3ab8",
+      "hash": "be351655a97691ce6785ad9a0d209693b6256aaba9af6879afba47b5676e5e88"
+    },
+    {
+      "seq": 10,
+      "ts": "2026-10-14T07:47:16.462Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "be351655a97691ce6785ad9a0d209693b6256aaba9af6879afba47b5676e5e88",
+      "hash": "a720572087d033c5d5f2ed4d7b10fc0329b5970fc37792fcf4d8cd43fa9b9855"
+    },
+    {
+      "seq": 11,
+      "ts": "2026-10-14T07:47:16.463Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "a720572087d033c5d5f2ed4d7b10fc0329b5970fc37792fcf4d8cd43fa9b9855",
+      "hash": "14b96d9a6303494f74ad67d89d5151459e8a8871f6015267106832a4907714cb"
+    },
+    {
+      "seq": 12,
+      "ts": "2026-10-14T07:47:21.174Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "14b96d9a6303494f74ad67d89d5151459e8a8871f6015267106832a4907714cb",
+      "hash": "816951296f1710803eda9278a55518d5ae720fe9e7233f98e4cac4a276770fc1"
+    },
+    {
+      "seq": 13,
+      "ts": "2026-10-14T07:47:21.175Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "816951296f1710803eda9278a55518d5ae720fe9e7233f98e4cac4a276770fc1",
+      "hash": "b18b387bef2f0527321d569be8480396fc96b93f89754e98bc8dea3d3a2bd460"
+    },
+    {
+      "seq": 14,
+      "ts": "2026-10-14T09:55:36.807Z",
+      "actor": "May thu parent",
+      "action": "claim-open",
+      "detail": "gid=382f4607… 9 thuộc tính mặc định",
+      "prev": "b18b387bef2f0527321d569be8480396fc96b93f89754e98bc8dea3d3a2bd460",
+      "hash": "8cd3c10f2f104ef4d1d9aca5491d04bb6d081c25129a4b025a3bfdd57e5ea98c"
+    },
+    {
+      "seq": 15,
+      "ts": "2026-10-14T09:56:29.058Z",
+      "actor": "LAPTOP-R6654TMQ",
+      "action": "claim-open",
+      "detail": "gid=78f27bc6… 9 thuộc tính mặc định",
+      "prev": "8cd3c10f2f104ef4d1d9aca5491d04bb6d081c25129a4b025a3bfdd57e5ea98c",
+      "hash": "2b1faecaa8c19b09ead64eff2f6dd70c9c4d57a33da9678db502d337d8b82753"
+    },
+    {
+      "seq": 16,
+      "ts": "2026-10-14T09:58:05.025Z",
+      "actor": "LAPTOP-R6654TMQ",
+      "action": "claim-open",
+      "detail": "gid=ac7cbe9b… 9 thuộc tính mặc định",
+      "prev": "2b1faecaa8c19b09ead64eff2f6dd70c9c4d57a33da9678db502d337d8b82753",
+      "hash": "c8606484963c355b3befccc654ab020c5c806cd2f60dd7c2b8c91ff6113e5e94"
+    },
+    {
+      "seq": 17,
+      "ts": "2026-10-14T10:00:06.262Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "c8606484963c355b3befccc654ab020c5c806cd2f60dd7c2b8c91ff6113e5e94",
+      "hash": "cd83ddef03c13ab65a593a730877617bf20c721071f6e1caebaff8cdc5476351"
+    },
+    {
+      "seq": 18,
+      "ts": "2026-10-14T10:00:06.263Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "cd83ddef03c13ab65a593a730877617bf20c721071f6e1caebaff8cdc5476351",
+      "hash": "1f354ea0bceebda2fe347dfa685f00884e3991a1ddb8d9e83b8b686ebf364ae7"
+    },
+    {
+      "seq": 19,
+      "ts": "2026-10-14T10:00:20.698Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "1f354ea0bceebda2fe347dfa685f00884e3991a1ddb8d9e83b8b686ebf364ae7",
+      "hash": "78f1bb4250abd781ccb57b26f225f1407869656e122f2e721499c5f67c18faa7"
+    },
+    {
+      "seq": 20,
+      "ts": "2026-10-14T10:00:20.710Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "78f1bb4250abd781ccb57b26f225f1407869656e122f2e721499c5f67c18faa7",
+      "hash": "052fe5e71a7a5f34dc68aa16bfe619860b6cc8ae5fcf9a4f72ae2e3a2c1316d7"
+    },
+    {
+      "seq": 21,
+      "ts": "2026-10-14T10:00:31.114Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "052fe5e71a7a5f34dc68aa16bfe619860b6cc8ae5fcf9a4f72ae2e3a2c1316d7",
+      "hash": "a0e9c061157f59dfb5392d95be43ab399260a2e8dd82b975b954f8aa8c0730a2"
+    },
+    {
+      "seq": 22,
+      "ts": "2026-10-14T10:00:31.116Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "a0e9c061157f59dfb5392d95be43ab399260a2e8dd82b975b954f8aa8c0730a2",
+      "hash": "94f046174d2987503fcdacbabfc6a7cb122be2cfb2e950a358c39707d561c9e9"
+    },
+    {
+      "seq": 23,
+      "ts": "2026-10-14T10:00:34.080Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "94f046174d2987503fcdacbabfc6a7cb122be2cfb2e950a358c39707d561c9e9",
+      "hash": "d6ffa7a9791b84f45e38c84ad717bd5584072feba0d6ad9b00303562996fd088"
+    },
+    {
+      "seq": 24,
+      "ts": "2026-10-14T10:00:34.082Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "d6ffa7a9791b84f45e38c84ad717bd5584072feba0d6ad9b00303562996fd088",
+      "hash": "fa8f821082b39972c173612b5183059b95c2df033ac333719872bb49f624093c"
+    },
+    {
+      "seq": 25,
+      "ts": "2026-10-14T10:01:04.871Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "fa8f821082b39972c173612b5183059b95c2df033ac333719872bb49f624093c",
+      "hash": "846928d49e0098df633fbbbbffa8e8f666fcbe3ca715912084451a242f104c6f"
+    },
+    {
+      "seq": 26,
+      "ts": "2026-10-14T10:01:04.872Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "846928d49e0098df633fbbbbffa8e8f666fcbe3ca715912084451a242f104c6f",
+      "hash": "aee3ecef419a2ad19f3a1b66be77a552aadb07cf3d144e619f40369e165e44c0"
+    },
+    {
+      "seq": 27,
+      "ts": "2026-10-14T10:01:18.432Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "aee3ecef419a2ad19f3a1b66be77a552aadb07cf3d144e619f40369e165e44c0",
+      "hash": "4613a0a632252ab032f9364472b87e6c19511fbb47f451b9679a591a43d56b4b"
+    },
+    {
+      "seq": 28,
+      "ts": "2026-10-14T10:01:18.445Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "4613a0a632252ab032f9364472b87e6c19511fbb47f451b9679a591a43d56b4b",
+      "hash": "644ee31cd2ba99e123f009cb55502b4d229e5a6eb0ff7ba01ad7b767cb6eba4a"
+    },
+    {
+      "seq": 29,
+      "ts": "2026-10-14T10:01:37.403Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "644ee31cd2ba99e123f009cb55502b4d229e5a6eb0ff7ba01ad7b767cb6eba4a",
+      "hash": "7dd3f3b294381791e150b94350e7fc1bab9e5678826a74bf2d5c5fdc8b50e7bb"
+    },
+    {
+      "seq": 30,
+      "ts": "2026-10-14T10:01:37.404Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "7dd3f3b294381791e150b94350e7fc1bab9e5678826a74bf2d5c5fdc8b50e7bb",
+      "hash": "939ee77d3044f8afc036f44251e6f8687928b9d8e919b5e0eab17f90f15ec528"
+    },
+    {
+      "seq": 31,
+      "ts": "2026-10-14T10:01:50.786Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "939ee77d3044f8afc036f44251e6f8687928b9d8e919b5e0eab17f90f15ec528",
+      "hash": "ecdd0d5009b205753e0714f2bcd820bb336cabecf9c32d760340e5dfe0c12b0a"
+    },
+    {
+      "seq": 32,
+      "ts": "2026-10-14T10:01:50.800Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "ecdd0d5009b205753e0714f2bcd820bb336cabecf9c32d760340e5dfe0c12b0a",
+      "hash": "f52e55a210690d90f042a6ad012a8bc1dcc38b021afd08af29e82da3211534c0"
+    },
+    {
+      "seq": 33,
+      "ts": "2026-10-14T10:02:00.301Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "f52e55a210690d90f042a6ad012a8bc1dcc38b021afd08af29e82da3211534c0",
+      "hash": "54f2504a331926185a08ef32ef460c3f40595efba143efa424cadfd5553c8d63"
+    },
+    {
+      "seq": 34,
+      "ts": "2026-10-14T10:02:00.302Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "54f2504a331926185a08ef32ef460c3f40595efba143efa424cadfd5553c8d63",
+      "hash": "d03cac044c585bbdc8d95605554585f9d847ac02643a6a9582335e9d4050985f"
+    },
+    {
+      "seq": 35,
+      "ts": "2026-10-14T10:02:18.974Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "d03cac044c585bbdc8d95605554585f9d847ac02643a6a9582335e9d4050985f",
+      "hash": "737b60c8377f06bc0cd81116a6d17b8255c1061a31450d4ebc8327cab8eb5392"
+    },
+    {
+      "seq": 36,
+      "ts": "2026-10-14T10:02:18.976Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "737b60c8377f06bc0cd81116a6d17b8255c1061a31450d4ebc8327cab8eb5392",
+      "hash": "0e44e27fb1c6f0ad911902a5b9ad6172fb7aa32b4b0b731c3e32a0e343709876"
+    },
+    {
+      "seq": 37,
+      "ts": "2026-10-14T10:02:28.261Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "0e44e27fb1c6f0ad911902a5b9ad6172fb7aa32b4b0b731c3e32a0e343709876",
+      "hash": "d79b7183ca4fa0bf466aac5ee66fb072ff4ea32d275628e2f4e897e6760d4314"
+    },
+    {
+      "seq": 38,
+      "ts": "2026-10-14T10:02:28.262Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "d79b7183ca4fa0bf466aac5ee66fb072ff4ea32d275628e2f4e897e6760d4314",
+      "hash": "72963801083c6a9e041c8a8592f9c4d1bf431a4fcbda7cf3be1db20f695fa588"
+    },
+    {
+      "seq": 39,
+      "ts": "2026-10-14T10:03:00.603Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "72963801083c6a9e041c8a8592f9c4d1bf431a4fcbda7cf3be1db20f695fa588",
+      "hash": "e5e2ee31e42e8787c5ada8d02a4a34ca61802caa910ac364887cfeeb99c8f857"
+    },
+    {
+      "seq": 40,
+      "ts": "2026-10-14T10:03:00.604Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "e5e2ee31e42e8787c5ada8d02a4a34ca61802caa910ac364887cfeeb99c8f857",
+      "hash": "b77de73ede996ddcf73c4d6f06c9f76aa13e320edc071d5b0b3c54d9397164c5"
+    },
+    {
+      "seq": 41,
+      "ts": "2026-10-14T10:03:11.010Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "b77de73ede996ddcf73c4d6f06c9f76aa13e320edc071d5b0b3c54d9397164c5",
+      "hash": "4a4aa6d269c40fc602a8dcadd038fec8350d271b333d346e92314911232357e7"
+    },
+    {
+      "seq": 42,
+      "ts": "2026-10-14T10:03:11.011Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "4a4aa6d269c40fc602a8dcadd038fec8350d271b333d346e92314911232357e7",
+      "hash": "a51d6a5be87f6f77bd652d289c8c26516473400ed8d226901de7630f39a5f0f8"
+    },
+    {
+      "seq": 43,
+      "ts": "2026-10-14T10:05:00.032Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "a51d6a5be87f6f77bd652d289c8c26516473400ed8d226901de7630f39a5f0f8",
+      "hash": "832aca94dcd3a52c5b55a7ff41a98ed2f75137ceb7590e61c42a64f5d47574c3"
+    },
+    {
+      "seq": 44,
+      "ts": "2026-10-14T10:05:00.035Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "832aca94dcd3a52c5b55a7ff41a98ed2f75137ceb7590e61c42a64f5d47574c3",
+      "hash": "72985515b750aef86b2fbf0501d8186d58a82de3917f3938a44e04f60cba94d6"
+    },
+    {
+      "seq": 45,
+      "ts": "2026-10-14T10:05:14.714Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "72985515b750aef86b2fbf0501d8186d58a82de3917f3938a44e04f60cba94d6",
+      "hash": "9f458f26b8bcf976595248e87ba36558d8b7a4a6c4876000beee86a17e516242"
+    },
+    {
+      "seq": 46,
+      "ts": "2026-10-14T10:05:14.716Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "9f458f26b8bcf976595248e87ba36558d8b7a4a6c4876000beee86a17e516242",
+      "hash": "e065f008a7dedd234d7ce90a6a88826cd59cf02cc61c8b5f179a58d7b33c57a7"
+    },
+    {
+      "seq": 47,
+      "ts": "2026-10-14T10:09:08.899Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "e065f008a7dedd234d7ce90a6a88826cd59cf02cc61c8b5f179a58d7b33c57a7",
+      "hash": "ff49d76ff49e9d2e0c9954e566660eed9ae13110f69ffd3cc6ddeb58945db527"
+    },
+    {
+      "seq": 48,
+      "ts": "2026-10-14T10:09:08.901Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "ff49d76ff49e9d2e0c9954e566660eed9ae13110f69ffd3cc6ddeb58945db527",
+      "hash": "2028f1bfd2f0837f0b17b45a729be6cffa73e0b630e283efa65672ab7c69db7f"
+    },
+    {
+      "seq": 49,
+      "ts": "2026-10-14T13:13:55.889Z",
+      "actor": "May nap du lieu mau",
+      "action": "claim-open",
+      "detail": "gid=3af9d254… 9 thuộc tính mặc định",
+      "prev": "2028f1bfd2f0837f0b17b45a729be6cffa73e0b630e283efa65672ab7c69db7f",
+      "hash": "350c07df695a5f849ec615829d46f3802f3641d33cb7b19fdc42ea7299f7b599"
+    },
+    {
+      "seq": 50,
+      "ts": "2026-10-14T13:14:59.108Z",
+      "actor": "May kiem tra",
+      "action": "claim-open",
+      "detail": "gid=2154dcf2… 9 thuộc tính mặc định",
+      "prev": "350c07df695a5f849ec615829d46f3802f3641d33cb7b19fdc42ea7299f7b599",
+      "hash": "73017d596b377d1ce3120ecf8d528dd196d4aa2668b8333ed87b4a4448467633"
+    },
+    {
+      "seq": 51,
+      "ts": "2026-10-14T13:19:07.237Z",
+      "actor": "May dong bo trang thai",
+      "action": "claim-open",
+      "detail": "gid=7c4eccfb… 9 thuộc tính mặc định",
+      "prev": "73017d596b377d1ce3120ecf8d528dd196d4aa2668b8333ed87b4a4448467633",
+      "hash": "5f1fd20ab45a96c449fcb4fa3513bddbcb84c459e5a59a5fd43ef0477fa876c6"
+    },
+    {
+      "seq": 52,
+      "ts": "2026-10-14T13:19:55.930Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "TẮT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "5f1fd20ab45a96c449fcb4fa3513bddbcb84c459e5a59a5fd43ef0477fa876c6",
+      "hash": "e7e0008e47ff8c4aabac39c729a42821f8be0c92dfeaa28333ae47a57ff1925d"
+    },
+    {
+      "seq": 53,
+      "ts": "2026-10-14T13:19:55.931Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do TẮT với 9 thuộc tính mặc định",
+      "prev": "e7e0008e47ff8c4aabac39c729a42821f8be0c92dfeaa28333ae47a57ff1925d",
+      "hash": "6419eb25e641e928b70e1a44427cba950710b08936970efb96817da4d6f59403"
+    },
+    {
+      "seq": 54,
+      "ts": "2026-10-14T13:20:34.713Z",
+      "actor": "admin",
+      "action": "open-enrollment",
+      "detail": "BẬT [Role:TiepDon,Role:BacSi,Role:KTV,Role:KetLuan,Khoa:Nhi,Khoa:Mat,Khoa:TMH,Khoa:RHM,Khoa:XetNghiem]",
+      "prev": "6419eb25e641e928b70e1a44427cba950710b08936970efb96817da4d6f59403",
+      "hash": "1d56b63579b45133df3b84ec66dc6446567be92ad0ea504db4c92bfc8dbd846c"
+    },
+    {
+      "seq": 55,
+      "ts": "2026-10-14T13:20:34.715Z",
+      "actor": "DienThoai",
+      "action": "alert.OPEN_ENROLLMENT",
+      "detail": "DienThoai: đăng ký tự do BẬT với 9 thuộc tính mặc định",
+      "prev": "1d56b63579b45133df3b84ec66dc6446567be92ad0ea504db4c92bfc8dbd846c",
+      "hash": "08c15d12ca1351732ae9f7272b213166fc3f548c8200b06bcccf891761beb6d4"
+    },
+    {
+      "seq": 56,
+      "ts": "2026-10-14T13:24:46.523Z",
+      "actor": "May kiem tra",
+      "action": "claim-open",
+      "detail": "gid=c17d1051… 9 thuộc tính mặc định",
+      "prev": "08c15d12ca1351732ae9f7272b213166fc3f548c8200b06bcccf891761beb6d4",
+      "hash": "826294aea0f903e1fb5443ead25222bbb30b944e57b355d331d0399acf64bbda"
+    },
+    {
+      "seq": 57,
+      "ts": "2026-10-28T03:57:32.654Z",
+      "actor": "May mau phu huynh",
+      "action": "claim-open",
+      "detail": "gid=6da3f726… 9 thuộc tính mặc định",
+      "prev": "826294aea0f903e1fb5443ead25222bbb30b944e57b355d331d0399acf64bbda",
+      "hash": "27b41aa12893f55b2b59c3c33b23c959589effcccd8314cebafe19571979bfb4"
+    }
+  ],
+  "open": {
+    "enabled": true,
+    "attrs": [
+      "MED:Role:TiepDon",
+      "MED:Role:BacSi",
+      "MED:Role:KTV",
+      "MED:Role:KetLuan",
+      "MED:Khoa:Nhi",
+      "MED:Khoa:Mat",
+      "MED:Khoa:TMH",
+      "MED:Khoa:RHM",
+      "MED:Khoa:XetNghiem"
+    ]
+  }
+}

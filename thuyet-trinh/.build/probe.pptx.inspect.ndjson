@@ -1,0 +1,12 @@
+{"kind":"deck","id":"pr/abb15g","name":"Deck"}
+{"kind":"layout","id":"ly/utcf69sv","editable":false,"name":"Master","type":"master"}
+{"kind":"layout","id":"ly/vyhcfux0","editable":false,"name":"Title Slide","type":"title","placeholders":[{"name":"title","type":"title"},{"name":"subtitle","type":"subtitle"}]}
+{"kind":"layout","id":"ly/sju5crel","editable":false,"name":"Section Header","type":"sectionHeader","placeholders":[{"name":"title","type":"title"}]}
+{"kind":"layout","id":"ly/n29cb2to","editable":false,"name":"Title and Body","type":"tx","placeholders":[{"name":"title","type":"title"},{"name":"body","type":"body"}]}
+{"kind":"layout","id":"ly/69s3mtkn","editable":false,"name":"Title and Two Column","type":"twoColTx","placeholders":[{"name":"title","type":"title"},{"name":"Left column","type":"body"},{"name":"Right column","type":"body"}]}
+{"kind":"layout","id":"ly/orupgzm9","editable":false,"name":"Title and One Column","type":"tx","placeholders":[{"name":"title","type":"title"},{"name":"body","type":"body"}]}
+{"kind":"layout","id":"ly/4fipwfed","editable":false,"name":"Blank","type":"blank"}
+{"kind":"slide","id":"sl/mueuxb","slideIndex":0,"layout":{"id":"ly/4fipwfed","name":"Blank"},"title":"Mã hóa dựa trên thuộc tính trong MedABE","textShapes":1,"backgroundColor":"rgba(255,255,255,1)"}
+{"kind":"textbox","id":"sh/wfed0fut","slideIndex":0,"position":{"left":70,"top":45,"width":1100,"height":100},"text":"Mã hóa dựa trên thuộc tính trong MedABE","geometry":"rect","lineWidth":0,"style":{"fontSize":44,"typeface":"Arial","color":"#103D3A","bold":true,"alignment":"left"}}
+{"kind":"table","id":"tb/6t0but0r","slideIndex":0,"position":{"left":70,"top":180,"width":1140,"height":300},"name":"","rows":3,"cols":2,"preview":"Thành phần | Vai trò"}
+{"kind":"notes","id":"nt/mueuxb","slideIndex":0,"text":"Ghi chú thuyết trình bằng tiếng Việt."}

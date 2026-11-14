@@ -1,0 +1,136 @@
+{
+  "cauHinh": {
+    "node": "v24.19.0",
+    "ghi": "máy chủ thử cục bộ; B0/B1 mô phỏng trong tiến trình (AES-256-GCM), không gồm độ trễ mạng"
+  },
+  "A1": {
+    "ABE": 0,
+    "B0": 0,
+    "B1": 0,
+    "ketLuan": "không khác biệt"
+  },
+  "A2": {
+    "ABE": 0,
+    "B0": 6,
+    "B1": 0,
+    "ketLuan": "B0 lộ toàn bộ; ABE và B1 (KMS tách riêng) không"
+  },
+  "A3": {
+    "bsmat01": {
+      "ABE": [
+        "mat"
+      ],
+      "B1": [
+        "mat"
+      ],
+      "B0_khiLoiPhanQuyenApi": [
+        "goc",
+        "mat",
+        "rhm",
+        "tmhA",
+        "tmhB",
+        "tmhC"
+      ]
+    },
+    "bstmh01": {
+      "ABE": [
+        "tmhA",
+        "tmhB",
+        "tmhC"
+      ],
+      "B1": [
+        "tmhA",
+        "tmhB",
+        "tmhC"
+      ],
+      "B0_khiLoiPhanQuyenApi": [
+        "goc",
+        "mat",
+        "rhm",
+        "tmhA",
+        "tmhB",
+        "tmhC"
+      ]
+    },
+    "bsrhm01": {
+      "ABE": [
+        "rhm"
+      ],
+      "B1": [
+        "rhm"
+      ],
+      "B0_khiLoiPhanQuyenApi": [
+        "goc",
+        "mat",
+        "rhm",
+        "tmhA",
+        "tmhB",
+        "tmhC"
+      ]
+    },
+    "bsnhi01": {
+      "ABE": [],
+      "B1": [],
+      "B0_khiLoiPhanQuyenApi": [
+        "goc",
+        "mat",
+        "rhm",
+        "tmhA",
+        "tmhB",
+        "tmhC"
+      ]
+    }
+  },
+  "A4": {
+    "B1_chiemKMS": 6,
+    "ABE_chiem1Nut": 0,
+    "ABE_chiem2Nut": "mở được (ngưỡng 2/3) — giới hạn còn lại của mô hình",
+    "dan": "security/src/deploy/split-nodes.e2e.test.ts, security/src/abe/rw15.test.ts"
+  },
+  "kichThuocBocKhoa_byte": {
+    "ABE_trungVi": 8047,
+    "ABE_nhoNhat": 4850,
+    "ABE_lonNhat": 8047,
+    "B1_trungVi": 240,
+    "B0": 120
+  },
+  "thoiGianMoAnh": {
+    "ABE_bacSiRHM_phienMoi_dangNhap_den_thayAnh_ms": {
+      "trungVi_ms": 858,
+      "n": 3,
+      "ghi": "gồm đăng nhập, xin vé, 3 nút cấp khoá, giải mã"
+    },
+    "ABE_bacSiRHM_phienDaCoKhoa": {
+      "trungVi_ms": 96.8,
+      "p95_ms": 110.7,
+      "n": 15
+    },
+    "ABE_nguoiNhap_6banMa_phienDaCoKhoa": {
+      "trungVi_ms": 330.6,
+      "p95_ms": 338.9,
+      "n": 15
+    },
+    "B0_matMaMayChu_6banMa": {
+      "trungVi_ms": 0.7,
+      "p95_ms": 1.6,
+      "n": 15
+    },
+    "B1_bacSiRHM": {
+      "trungVi_ms": 0.1,
+      "p95_ms": 0.2,
+      "n": 15
+    },
+    "B1_nguoiNhap_6banMa": {
+      "trungVi_ms": 0.6,
+      "p95_ms": 0.9,
+      "n": 15
+    },
+    "ghi": "ABE gồm: gọi API liệt kê + tải bản mã + giải mã ABE (cặp song tuyến) + giải mã AES + ghép ảnh. B0/B1 chỉ gồm AES-GCM nên KHÔNG so được trực tiếp về độ trễ end-to-end — đây là chi phí mật mã."
+  },
+  "doiChinhSachHoSoCu": {
+    "ABE_moVaBocLaiMotBanGhi_ms": 476,
+    "ABE_daBocLai": true,
+    "B1_bocThemMotNhom_ms": 0.3,
+    "ghi": "ABE bọc lại header khoá (không mã hoá lại ảnh); với lô dùng header chung thì chỉ 1 phép cho cả lô. B1 nhanh hơn rất nhiều về mật mã nhưng cần người/dịch vụ GIỮ DEK và mỗi nhóm khoá phải được KMS phát cho đúng người."
+  }
+}

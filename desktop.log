@@ -1,0 +1,24 @@
+
+> medabe@0.1.0 desktop
+> npm run desktop:build && node app/desktop/run.mjs
+
+
+> medabe@0.1.0 desktop:build
+> node app/desktop/build.mjs admin
+
+Đã build bản "admin"
+
+Error occurred in handler for 'admin:unlock': VaultError: Sai mật khẩu. Còn 4 lần thử.
+    at AdminVault.unlock (E:\TLCN\medabe\app\desktop\dist\main.cjs:115:156)
+    at async Session.<anonymous> (node:electron/js2c/browser_init:1:119972) {
+  code: 'BAD_PASSWORD',
+  lockedUntil: 0,
+  attemptsLeft: 4
+}
+Error occurred in handler for 'admin:unlock': VaultError: Sai mật khẩu. Còn 4 lần thử.
+    at AdminVault.unlock (E:\TLCN\medabe\app\desktop\dist\main.cjs:115:156)
+    at async Session.<anonymous> (node:electron/js2c/browser_init:1:119972) {
+  code: 'BAD_PASSWORD',
+  lockedUntil: 0,
+  attemptsLeft: 4
+}

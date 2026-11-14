@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.medabe.storage.NetSensorTest
+-------------------------------------------------------------------------------
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.115 s -- in com.medabe.storage.NetSensorTest

@@ -1,0 +1,16 @@
+
+> medabe@0.1.0 demo
+> tsx security/src/deploy/demo.ts
+
+Dùng lại cấu hình cơ quan MED đã có.
+
+MedABE đang chạy
+  Giao diện         : http://localhost:5173
+  Kho mù (Spring)   : http://localhost:8090
+  SIEM (JSON-lines) : E:\TLCN\medabe\data-demo\siem\events.jsonl
+
+Trạm quản trị: kích hoạt MỘT lần bằng gói trong file
+  E:\TLCN\medabe\data-demo\admin-package.txt (nếu đã xoá: npm run admin:package)
+(mở ứng dụng bằng  npm run desktop -- --admin-setup ; sau khi kích hoạt hãy XOÁ file này và admin-secrets.json nếu không cần.)
+Token không được in ra màn hình.
+Ctrl+C để dừng.

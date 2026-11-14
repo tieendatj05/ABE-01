@@ -1,0 +1,62 @@
+[
+  {
+    "slide": 1,
+    "title": "MedABE"
+  },
+  {
+    "slide": 2,
+    "title": "Bài toán bảo vệ hồ sơ khám sức khỏe"
+  },
+  {
+    "slide": 3,
+    "title": "ABE và lựa chọn CP-ABE"
+  },
+  {
+    "slide": 4,
+    "title": "Nền tảng mật mã của MedABE"
+  },
+  {
+    "slide": 5,
+    "title": "Các thành phần tham gia ABE"
+  },
+  {
+    "slide": 6,
+    "title": "Mã hóa lai: ABE bảo vệ khóa AES"
+  },
+  {
+    "slide": 7,
+    "title": "Chính sách thật của mục lâm sàng Nhi"
+  },
+  {
+    "slide": 8,
+    "title": "Sinh khóa theo ngưỡng 2 trên 3"
+  },
+  {
+    "slide": 9,
+    "title": "Từ định danh thiết bị đến giải mã"
+  },
+  {
+    "slide": 10,
+    "title": "Chống ghép khóa và sửa phong bì"
+  },
+  {
+    "slide": 11,
+    "title": "Thu hồi quyền bằng epoch và bọc lại khóa"
+  },
+  {
+    "slide": 12,
+    "title": "Cấp cứu và nút duyệt điện thoại"
+  },
+  {
+    "slide": 13,
+    "title": "Tối ưu nhập lô bằng header ABE chung"
+  },
+  {
+    "slide": 14,
+    "title": "Bằng chứng kiểm thử và kịch bản demo"
+  },
+  {
+    "slide": 15,
+    "title": "Phạm vi bảo vệ và giới hạn"
+  }
+]

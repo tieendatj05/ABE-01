@@ -1,0 +1,89 @@
+{
+  "palette": {
+    "cover": "#082B53",
+    "content": "#0B4A85",
+    "text": "#FFFFFF",
+    "accent": "#92DAFF"
+  },
+  "keep": [
+    "p1",
+    "p2",
+    "p3",
+    "p7",
+    "p8",
+    "p5",
+    "p12",
+    "p13",
+    "p14",
+    "p15"
+  ],
+  "remove": [
+    "p4",
+    "p6",
+    "p9",
+    "p10",
+    "p11"
+  ],
+  "slides": [
+    {
+      "id": "p1",
+      "role": "Mở đầu",
+      "exemplar": "p1",
+      "mapping": "Giữ logo và mọi khung chữ. Đổi tiêu đề, thông điệp và màu nền."
+    },
+    {
+      "id": "p2",
+      "role": "ABE làm gì trong app",
+      "exemplar": "p2",
+      "mapping": "Giữ bảng hai cột. Rút còn các chức năng và phần dữ liệu được bảo vệ."
+    },
+    {
+      "id": "p3",
+      "role": "Lưu hồ sơ",
+      "exemplar": "p3",
+      "mapping": "Giữ bảng ba cột. Thay so sánh KP/CP bằng vai trò AES/ABE."
+    },
+    {
+      "id": "p7",
+      "role": "Đọc đúng khoa",
+      "exemplar": "p7",
+      "mapping": "Giữ ví dụ policy và bảng đối chứng. Thu gọn mã thuộc tính thành diễn giải."
+    },
+    {
+      "id": "p8",
+      "role": "Khóa của tôi",
+      "exemplar": "p8",
+      "mapping": "Giữ số 2/3 và vùng tên nút. Thay công thức bằng ý nghĩa cấp khóa và chống ghép khóa."
+    },
+    {
+      "id": "p5",
+      "role": "Quản trị và thu hồi",
+      "exemplar": "p5",
+      "mapping": "Giữ bảng. Ghép cấp quyền, thu hồi, epoch và rewrap vào một trang."
+    },
+    {
+      "id": "p12",
+      "role": "Phá vỡ kính",
+      "exemplar": "p12",
+      "mapping": "Giữ hai cột. Dùng cho thao tác trong app và quyền được bảo vệ."
+    },
+    {
+      "id": "p13",
+      "role": "Import Excel",
+      "exemplar": "p13",
+      "mapping": "Giữ số 1 và bảng lợi ích/giới hạn. Thay công thức bằng mô tả khóa con."
+    },
+    {
+      "id": "p14",
+      "role": "Bằng chứng",
+      "exemplar": "p14",
+      "mapping": "Giữ bảng kiểm thử. Rút bốn tình huống đối chứng và giữ ngày kiểm thử."
+    },
+    {
+      "id": "p15",
+      "role": "Giới hạn",
+      "exemplar": "p15",
+      "mapping": "Giữ bốn nhóm chữ. Tóm tắt phạm vi, thu hồi, lớp bổ sung và kênh phụ huynh."
+    }
+  ]
+}
