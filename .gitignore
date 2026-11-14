@@ -22,9 +22,5 @@ TAI_KHOAN_NHAN_VIEN_DEMO.md
 # Ảnh y tế thật ẩn danh tải từ TCIA (CC BY 4.0) — không đưa vào git
 /du-lieu-anh/
 
-# Ảnh chữ ký tay của bác sĩ (từ danh mục mẫu KSK, có họ tên người thật nhiều khả năng) — không đưa lên repo Public.
-# App vẫn chạy khi thiếu ảnh (chỉ không hiện ảnh chữ ký minh hoạ); chữ ký số ECDSA không phụ thuộc vào ảnh này.
-app/web/src/data/chuky/*.png
-
 # Bí mật TOTP của tài khoản MẪU (demo) — không đưa vào git
 .demo-mfa.json
