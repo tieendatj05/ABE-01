@@ -58,7 +58,7 @@ Máy chủ demo bấm-là-chạy (Windows): `Chay-Demo-KSK-Moi.cmd`, rồi mở 
 
 ## Không nằm trong repo
 
-Dữ liệu chạy (`data-research/`), bản đóng gói (`release/`), ảnh y khoa tải từ TCIA, tài khoản mẫu kèm mật khẩu, bí mật MFA. Mật khẩu của tài khoản mẫu dùng trong test nằm trong mã (`security/src/deploy/research-stack.ts`) — **chỉ để chạy thử**, đừng dùng cho hệ thống thật.
+Dữ liệu chạy (`data-research/`), bản đóng gói (`release/`), ảnh y khoa tải từ TCIA, tài khoản mẫu kèm mật khẩu, bí mật MFA, và **ảnh chữ ký tay bác sĩ** (`app/web/src/data/chuky/*.png`, có thể là chữ ký người thật). Thiếu ảnh chữ ký thì app vẫn chạy bình thường, chỉ không hiện ảnh chữ ký minh hoạ trong phiếu; chữ ký số ECDSA không phụ thuộc vào ảnh này. Mật khẩu của tài khoản mẫu dùng trong test nằm trong mã (`security/src/deploy/research-stack.ts`) — **chỉ để chạy thử**, đừng dùng cho hệ thống thật.
 
 ## Giới hạn đã biết
 
