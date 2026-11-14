@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { OpenResult, RecordRow } from '../../../security/src/index.js';
 import { UnitSelect } from './UnitSelect.js';
 import { fetchReceipts, receiptText, submitPatients, type ReceiptMap } from './byt.js';
+import { focusPatient } from './focus.js';
 import { canWrite, checkMau, tuoi, validateDetailed, type HanhChinh, type Mau } from './model.js';
 import { session } from './session.js';
+import { sachTenAll } from './ten.js';
 import { log, run } from './ui.js';
 
 interface Row { rec: RecordRow; res: OpenResult | null; data: HanhChinh | null }
@@ -41,7 +43,7 @@ export function ListPage({ unit, setUnit }: { unit: string; setUnit: (u: string)
     for (const r of all) { const p = latest.get(r.patientIdx); if (!p || r.createdAt >= p.createdAt) latest.set(r.patientIdx, r); }
     const recs = [...latest.values()];
     setProg({ d: 0, t: recs.length });
-    const res = await c.openMany(recs, (d, t) => setProg({ d, t }));
+    const res = sachTenAll(await c.openMany(recs, (d, t) => setProg({ d, t })));
     setRows(recs.map((rec, i) => ({ rec, res: res[i], data: (res[i]?.data as HanhChinh) ?? null })));
     const st = await fetchReceipts(c, recs.map((r) => r.id));
     setRcpt(st.map); setBytErr(st.error);
@@ -68,7 +70,7 @@ export function ListPage({ unit, setUnit }: { unit: string; setUnit: (u: string)
     return !s || [r.data?.hoTen, r.data?.cccd, r.data?.dienThoai, r.data?.lop].some((v) => v?.toLowerCase().includes(s));
   });
 
-  const choose = async (r: Row) => { setSel(r); setPolicy(await c.policyOf(r.rec, true).catch(() => '')); };
+  const choose = async (r: Row) => { setSel(r); focusPatient.set(c.s.deviceId, r.data?.cccd); setPolicy(await c.policyOf(r.rec, true).catch(() => '')); };
 
   /**
    * Liên thông: gửi phiếu khám (mọi mục, bản mới nhất) của các dòng đang lọc lên cổng Bộ Y tế (mô phỏng). Nội dung gửi là bản ĐÃ MÃ HOÁ; cổng trả
@@ -85,7 +87,7 @@ export function ListPage({ unit, setUnit }: { unit: string; setUnit: (u: string)
   });
 
   /**
-   * Phụ huynh tra cứu bằng CCCD + ngày sinh của học sinh (không cần mã). Hồ sơ lưu trước khi đổi cách tra cứu (hoặc vừa sửa ngày sinh) cần bọc lại
+   * Phụ huynh tra cứu bằng họ tên + CCCD của học sinh (không cần mã). Hồ sơ lưu trước khi đổi cách tra cứu (hoặc vừa sửa họ tên) cần bọc lại
    * khoá cho phụ huynh: máy này mở khoá bằng ABE rồi bọc thêm, dữ liệu mã hoá giữ nguyên. Hồ sơ đã liên thông được gửi lại để cổng Bộ Y tế cũng cập nhật.
    */
   const refreshParent = () => run('Cập nhật tra cứu của phụ huynh', async () => {
@@ -93,24 +95,24 @@ export function ListPage({ unit, setUnit }: { unit: string; setUnit: (u: string)
     const out = await c.refreshParentAccess(unit, (d, t) => setProg({ d, t }));
     const lt = new Set(rows.filter((r) => out.patients.has(r.rec.patientIdx) && isLt(r)).map((r) => r.rec.patientIdx));
     if (lt.size) { setProg({ d: 0, t: lt.size }); await submitPatients(c, unit, lt, (d, t) => setProg({ d, t })); }
-    log(`Đã cập nhật đường tra cứu (CCCD + ngày sinh) cho ${out.updated} bản ghi của ${out.patients.size} học sinh${lt.size ? `, gửi lại ${lt.size} hồ sơ lên cổng Bộ Y tế` : ''}.${out.noDob ? ` Bỏ qua ${out.noDob} bản ghi vì hồ sơ chưa có ngày sinh hợp lệ.` : ''}`, 'ok');
+    log(`Đã cập nhật đường tra cứu (họ tên + CCCD) cho ${out.updated} bản ghi của ${out.patients.size} học sinh${lt.size ? `, gửi lại ${lt.size} hồ sơ lên cổng Bộ Y tế` : ''}.${out.noName ? ` Bỏ qua ${out.noName} bản ghi vì hồ sơ chưa có họ tên hợp lệ.` : ''}`, 'ok');
     await load();
   });
 
   const left = sel?.res;
   const d = sel?.data;
   const leftRows: Record<Tab, [string, string][]> = {
-    data: d ? [['Họ tên', d.hoTen], ['Lớp', d.lop ?? ''], ['Giới tính', d.gioiTinh === 'nam' ? 'Nam' : 'Nữ'], ['Ngày sinh', `${d.ngaySinh} (${tuoi(d.ngaySinh)} tuổi)`], ['Số CCCD', d.cccd], ['Phụ huynh tra cứu bằng', 'Số CCCD + ngày sinh của học sinh'], ['Ngày cấp / Nơi cấp', `${d.ngayCap} / ${d.noiCap}`], ['Dân tộc', d.danToc], ['Điện thoại', d.dienThoai], ['Địa chỉ', [d.diaChi, d.phuongXa, d.tinh].filter(Boolean).join(', ')], ['Người giám hộ', `${d.giamHo.hoTen} (${d.giamHo.cccd})`], ['Liên thông Bộ Y tế', receiptText(rcpt.get(sel!.rec.id))]] : [],
+    data: d ? [['Họ tên', d.hoTen], ['Lớp', d.lop ?? ''], ['Giới tính', d.gioiTinh === 'nam' ? 'Nam' : 'Nữ'], ['Ngày sinh', `${d.ngaySinh} (${tuoi(d.ngaySinh)} tuổi)`], ['Số CCCD', d.cccd], ['Ngày cấp / Nơi cấp', `${d.ngayCap} / ${d.noiCap}`], ['Dân tộc', d.danToc], ['Điện thoại', d.dienThoai], ['Địa chỉ', [d.diaChi, d.phuongXa, d.tinh].filter(Boolean).join(', ')], ['Người giám hộ', `${d.giamHo.hoTen} (${d.giamHo.cccd})`], ['Liên thông Bộ Y tế', receiptText(rcpt.get(sel!.rec.id))]] : [],
     header: left ? [['Người lập', left.author.name], ['Thiết bị tạo', left.author.deviceId], ['Đã bọc lại khoá phiên này', left.rewrapped ? 'Có' : 'Không']] : [],
-    sig: left ? [['Biên nhận Bộ Y tế (Ed25519)', rcpt.get(sel!.rec.id) ? '✔ chữ ký cổng hợp lệ, băm ' + rcpt.get(sel!.rec.id)!.contentHash.slice(0, 16) + '…' : 'chưa có'], ['Chữ ký số (ECDSA P-256)', left.signatureValid ? '✔ hợp lệ' : '✘ KHÔNG hợp lệ'], ['Chứng chỉ thiết bị', 'ký Ed25519 bởi registry (đã kiểm tra)'], ['Thiết bị ký', left.author.deviceId]] : [],
+    sig: left ? [['Biên nhận Bộ Y tế (Ed25519)', rcpt.get(sel!.rec.id) ? '✔ chữ ký cổng hợp lệ, băm ' + rcpt.get(sel!.rec.id)!.contentHash.slice(0, 16) + '…' : 'chưa có'], ['Chữ ký số (ECDSA P-256)', left.signatureValid ? '✔ hợp lệ' : '✘ KHÔNG hợp lệ'], ['Chứng chỉ thiết bị', 'registry ✔'], ['Thiết bị ký', left.author.deviceId]] : [],
     raw: d ? [['JSON', JSON.stringify(d)]] : [],
   };
   const rec = sel?.rec;
   const rightRows: Record<Tab, [string, string][]> = {
     data: rec ? [['id', rec.id], ['loại mục', rec.type], ['khoa', rec.khoa], ['thời điểm', rec.createdAt], ['thiết bị tạo', rec.authorDevice], ['chỉ mục bệnh nhân (HMAC)', rec.patientIdx], ['chỉ mục đơn vị (HMAC)', rec.groupIdx ?? ''], ['kích thước ciphertext', `${(rec.envelope.ciphertext.length / 2).toLocaleString()} byte`]] : [],
-    header: rec ? [['phiên bản phong bì', String(rec.envelope.v)], ['header khoá chung', rec.envelope.v === 3 ? rec.envelope.headerId : '(riêng cho bản ghi)'], ['chính sách truy cập (công khai)', policy.replace(/#\d{4}W\d{2}\.\d+/g, '').replace(/MED:/g, '')]] : [],
-    sig: rec ? [['chữ ký số', 'nằm BÊN TRONG ciphertext - máy chủ không thấy, không sửa được']] : [],
-    raw: rec ? [['phong bì (cắt ngắn)', JSON.stringify(rec.envelope).slice(0, 700) + '…']] : [],
+    header: rec?.envelope ? [['phiên bản phong bì', String(rec.envelope.v)], ['header khoá chung', rec.envelope.v === 3 ? rec.envelope.headerId : '(riêng cho bản ghi)'], ['chính sách truy cập (công khai)', policy.replace(/#\d{4}W\d{2}\.\d+/g, '').replace(/MED:/g, '')]] : [],
+    sig: rec ? [['chữ ký số', 'trong ciphertext']] : [],
+    raw: rec?.envelope ? [['phong bì (cắt ngắn)', JSON.stringify(rec.envelope).slice(0, 700) + '…']] : [],
   };
   const tabs = (cur: Tab, set: (t: Tab) => void) => (
     <div className="tabsrow small">{([['data', 'Data'], ['header', 'Header'], ['sig', 'Signature'], ['raw', 'Raw JSON']] as [Tab, string][]).map(([k, l]) => <a key={k} href="#" className={cur === k ? 'on' : ''} onClick={(e) => { e.preventDefault(); set(k); }}>{l}</a>)}</div>
@@ -134,11 +136,11 @@ export function ListPage({ unit, setUnit }: { unit: string; setUnit: (u: string)
         <div className="lstats">
           <div>▮ <b>TỔNG đã lưu (mã hoá):</b> {stats.saved} | <b>đọc được trên máy này:</b> {stats.readable}{stats.denied > 0 && <> | <b className="bad">không đủ quyền: {stats.denied}</b></>}</div>
           <div>▮ <b>Cổng Bộ Y tế (mô phỏng)</b> → <span className="ok">✔ Đã gửi: {stats.da}</span> | ⏳ Chưa gửi: {stats.chua} | <span className="bad">✕ Lỗi dữ liệu: {stats.loi}</span></div>
-          <div><button className="mini2" disabled={!canWrite('hanhchinh', c.s.attrs) || !!prog} onClick={() => void send()}>Gửi liên thông các dòng đang lọc</button> <button className="mini2" onClick={() => void run('Tải lại', load)}>⟳ Tải lại</button> <button className="mini2" disabled={!rows.some((r) => r.data) || !!prog} onClick={() => void refreshParent()} title="Phụ huynh tra cứu bằng số CCCD + ngày sinh của học sinh. Bấm để cập nhật cho hồ sơ lưu từ trước hoặc vừa sửa ngày sinh.">Cập nhật tra cứu phụ huynh</button></div>
+          <div><button className="mini2" disabled={!canWrite('hanhchinh', c.s.attrs) || !!prog} onClick={() => void send()}>Gửi liên thông các dòng đang lọc</button> <button className="mini2" onClick={() => void run('Tải lại', load)}>⟳ Tải lại</button> <button className="mini2" disabled={!rows.some((r) => r.data) || !!prog} onClick={() => void refreshParent()}>Cập nhật tra cứu phụ huynh</button></div>
         </div>
       </div>
       {loadError && <div className="warnbar" role="alert">Không tải được hồ sơ: {loadError}</div>}
-      {bytErr && <div className="warnbar" role="alert">Cổng liên thông Bộ Y tế chưa kết nối: {bytErr}. Trạng thái liên thông chưa xác định và nút gửi sẽ báo lỗi.</div>}
+      {bytErr && <div className="warnbar" role="alert">Cổng Bộ Y tế chưa kết nối: {bytErr}.</div>}
       {prog && <div className="progress"><div style={{ width: `${(prog.d / Math.max(1, prog.t)) * 100}%` }} /><span>Đang giải mã {prog.d}/{prog.t} hồ sơ trên máy này…</span></div>}
       <div className="tablewrap lgrid">
         <table className="grid">
@@ -151,7 +153,7 @@ export function ListPage({ unit, setUnit }: { unit: string; setUnit: (u: string)
                   : <td colSpan={10} className="lock">🔒 mã hoá - không đủ quyền đọc</td>}
               </tr>
             ))}
-            {!shown.length && !prog && <tr><td colSpan={13} className="muted">{loadError ? 'Danh sách chưa tải được. Kiểm tra kết nối rồi bấm Tải lại.' : 'Chưa có hồ sơ phù hợp. Kiểm tra Công ty và các bộ lọc.'}</td></tr>}
+            {!shown.length && !prog && <tr><td colSpan={13} className="muted">{loadError ? 'Chưa tải được danh sách.' : 'Chưa có hồ sơ.'}</td></tr>}
           </tbody>
         </table>
       </div>

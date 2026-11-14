@@ -20,6 +20,7 @@
     "security/src",
     "app/web/src",
     "app/parent/src",
-    "app/desktop"
+    "app/desktop",
+    "app/research/src"
   ]
 }

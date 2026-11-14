@@ -4,6 +4,7 @@ import { TEMPLATES, UNITS } from './data/catalog.js';
 import { UnitSelect } from './UnitSelect.js';
 import { ConnectionPanel } from './ConnectionPanel.js';
 import { UpdateBanner } from './UpdateBanner.js';
+import { AdminMfaGate } from './AdminMfa.js';
 import { Exam } from './Exam.js';
 import { Gate } from './Gate.js';
 import { ImportPage } from './ImportPage.js';
@@ -14,18 +15,21 @@ import { ReportPage } from './ReportPage.js';
 import { BreakGlass, DeviceKeys } from './Security.js';
 import { bridge } from './bridge.js';
 import { session } from './session.js';
-import { useConnection, useLog, useSession } from './ui.js';
+import { Accounts } from './Accounts.js';
+import { ImagesPage } from './ImagesPage.js';
+import { Supervisor } from './Supervisor.js';
+import { useBusiness, useConnection, useLog, useSession } from './ui.js';
 
-type Page = 'home' | 'exam' | 'byt' | 'import' | 'catalog' | 'manage' | 'report' | 'update' | 'sec-dev' | 'sec-bg' | 'sec-admin' | 'sec-siem' | 'sec-phone' | 'sec-setup';
+type Page = 'accounts' | 'supervisor' | 'images' | 'home' | 'exam' | 'byt' | 'import' | 'catalog' | 'manage' | 'report' | 'update' | 'sec-dev' | 'sec-bg' | 'sec-admin' | 'sec-siem' | 'sec-phone' | 'sec-setup';
 const MENU: [Page, string][] = [
   ['home', '⌂ Trang chủ'], ['exam', '🩺 Khám sức khỏe định kỳ'], ['import', '▤ Import Excel'], ['catalog', '▤ Danh mục'],
-  ['manage', '▤ Quản lý hồ sơ'], ['report', '▤ Báo cáo'], ['byt', '▤ Cổng Bộ Y tế'], ['update', '▤ Cập nhật'],
+  ['manage', '▤ Quản lý hồ sơ'], ['images', '▤ Ảnh CT/MRI'], ['report', '▤ Báo cáo'], ['byt', '▤ Cổng Bộ Y tế'], ['update', '▤ Cập nhật'],
 ];
 // Dành cho MỌI người dùng (khoá của chính họ, phá-vỡ-kính cấp cứu của bác sĩ).
 const USER_SEC: [Page, string][] = [['sec-dev', 'Thiết bị & khoá của tôi'], ['sec-bg', 'Phá vỡ kính (cấp cứu)']];
 // CHỈ có trên trạm quản trị đã kích hoạt (và luôn đòi mật khẩu quản trị). Trên máy khác menu này không tồn tại.
 const ADMIN_SEC: [Page, string][] = [['sec-admin', 'Quản trị cấp quyền'], ['sec-siem', 'Giám sát an ninh'], ['sec-phone', 'App điện thoại (nút 3/3)']];
-const NEEDS_DEVICE: Page[] = ['exam', 'import', 'manage', 'report', 'byt'];
+const NEEDS_DEVICE: Page[] = ['exam', 'import', 'manage', 'report', 'byt', 'accounts', 'images', 'supervisor'];
 
 // Toàn bộ màn hình quản trị nằm trong AdminArea và chỉ được nạp bằng import động ở bản "admin". Ở bản "user" biểu thức này là
 // hằng số (build thay __EDITION__ bằng "user") nên import bị loại: mã quản trị KHÔNG có trong gói (xem app/test-ui/user-edition-check.mjs).
@@ -55,29 +59,38 @@ export function App() {
   const [menu, setMenu] = useState<'' | 'user' | 'admin'>('');
   const [adm, refreshAdm] = useAdminStatus();
   const c = session.client;
+  const biz = useBusiness();
+  const isAdminAccount = c?.s.account?.role === 'QUAN_TRI';
+  const isSupervisor = c?.s.account?.role === 'GIAM_SAT';       // Giám sát: chỉ có trang tra cứu đọc-tất-cả (không nhập liệu, không quản trị)
 
+  useEffect(() => { if (isAdminAccount) setPage('accounts'); }, [isAdminAccount]);
+  useEffect(() => { if (isSupervisor) setPage('supervisor'); }, [isSupervisor]);       // tài khoản Quản trị không có dữ liệu bệnh nhân để nhập/xem: vào thẳng trang quản trị tài khoản
   useEffect(() => { document.title = (__EDITION__ === 'user' ? 'MedABE-NHÂN VIÊN' : 'MedABE-ADMIN') + ' - Version:[26.10.13] - [Khám sức khỏe toàn dân]'; /* tiêu đề phân biệt rõ bản quản trị và bản nhân viên */ }, []);
 
   // Menu quản trị chỉ tồn tại khi: bản build có phần quản trị VÀ máy này đã kích hoạt (hoặc đang ở chế độ kích hoạt --admin-setup).
   const showAdmin = !!AdminArea && !!adm && (adm.enrolled || adm.setupMode);
   const go = (p: string) => { if (__EDITION__ === 'user' && !online) return; setPage(p as Page); setMenu(''); };
-  const showPick = NEEDS_DEVICE.includes(page) && page !== 'import' && page !== 'manage' && page !== 'report' && page !== 'byt';
+  const showPick = NEEDS_DEVICE.includes(page) && page !== 'accounts' && page !== 'supervisor' && page !== 'import' && page !== 'manage' && page !== 'report' && page !== 'byt';
   const userSec = page === 'sec-dev' || page === 'sec-bg';
   const adminSec = page === 'sec-admin' || page === 'sec-siem' || page === 'sec-phone' || page === 'sec-setup';
 
   const adminPage = (key: 'sec-admin' | 'sec-siem' | 'sec-phone' | 'sec-setup') =>
     showAdmin && AdminArea
       ? <Suspense fallback={null}><AdminArea page={key} adm={adm} refresh={() => void refreshAdm()} /></Suspense>
-      : <div className="gatewrap"><section><h2>Không có quyền</h2><p className="sub">Phần này không khả dụng trên thiết bị này.</p></section></div>;
+      : <div className="gatewrap"><section><h2>Không có quyền</h2></section></div>;
 
   let body: React.ReactNode;
   if (!unlocked && (__EDITION__ === 'user' || NEEDS_DEVICE.includes(page))) body = <div className="gatewrap"><Gate /></div>;
-  else if (!online && (__EDITION__ === 'user' || NEEDS_DEVICE.includes(page))) body = <div className="gatewrap" role="alert"><section><h2>Chưa kết nối máy chủ KSK</h2><p>Ứng dụng đã khóa nhập liệu, xem hồ sơ và báo cáo. Hãy kết nối cùng Wi-Fi/LAN với máy KSK Admin và bật máy chủ.</p><p>Ứng dụng sẽ tự tìm và tải lại khi kết nối được đúng máy chủ.</p></section></div>;
+  else if (!online && (__EDITION__ === 'user' || NEEDS_DEVICE.includes(page))) body = <div className="gatewrap" role="alert"><section><h2>Chưa kết nối máy chủ KSK</h2></section></div>;
+  else if (page === 'accounts') body = isAdminAccount ? <AdminMfaGate><Accounts /></AdminMfaGate> : <div className="gatewrap"><section><h2>Không có quyền</h2></section></div>;
+  else if (page === 'supervisor') body = isSupervisor ? <Supervisor unit={unit} /> : <div className="gatewrap"><section><h2>Không có quyền</h2></section></div>;
+  else if (isSupervisor) body = <div className="gatewrap"><section><h2>Không có quyền</h2><p>Tài khoản Giám sát chỉ dùng trang Giám sát hồ sơ.</p></section></div>;
   else if (page === 'home') body = <Home go={go} />;
   else if (page === 'exam') body = <Exam unit={unit} templateId={tpl} key={unit + tpl} />;
   else if (page === 'import') body = <ImportPage unit={unit} setUnit={setUnit} />;
   else if (page === 'catalog') body = <Catalog />;
   else if (page === 'manage') body = <ListPage unit={unit} setUnit={setUnit} key={unit} />;
+  else if (page === 'images') body = <ImagesPage key="images" unit={unit} />;
   else if (page === 'report') body = <ReportPage unit={unit} setUnit={setUnit} key={unit} />;
   else if (page === 'byt') body = <ByTPage unit={unit} setUnit={setUnit} key={unit} />;
   else if (page === 'update') body = <Update />;
@@ -90,10 +103,12 @@ export function App() {
       {unlocked && c && <Watermark text={c.s.name} />}
       <div className="menubar">
         <img className="brand" src="ksk-logo.png" alt="KSK" />
-        {MENU.filter(([k]) => k !== 'byt' || !!c?.s.attrs.includes('MED:Org:SoYTe')).map(([k, l]) => <a key={k} href="#" className={page === k ? 'on' : ''} onClick={(e) => { e.preventDefault(); go(k); }}>{l}</a>)}
+        {isAdminAccount && <a href="#" className={page === 'accounts' ? 'on' : ''} onClick={(e) => { e.preventDefault(); go('accounts'); }}>👤 Quản trị tài khoản</a>}
+        {isSupervisor && <a href="#" className={page === 'supervisor' ? 'on' : ''} onClick={(e) => { e.preventDefault(); go('supervisor'); }}>🛡 Giám sát hồ sơ</a>}
+        {MENU.filter(([k]) => (k !== 'byt' || !!c?.s.attrs.includes('MED:Org:SoYTe')) && !isSupervisor && (!isAdminAccount || k === 'home' || k === 'update')).map(([k, l]) => <a key={k} href="#" className={page === k ? 'on' : ''} onClick={(e) => { e.preventDefault(); go(k); }}>{l}</a>)}
         <span className="dropdown">
           <a href="#" className={userSec ? 'on' : ''} onClick={(e) => { e.preventDefault(); setMenu(menu === 'user' ? '' : 'user'); }}>🔑 Khoá của tôi ▾</a>
-          {menu === 'user' && <div className="dropmenu">{USER_SEC.map(([k, l]) => <a key={k} href="#" onClick={(e) => { e.preventDefault(); go(k); }}>{l}</a>)}</div>}
+          {menu === 'user' && <div className="dropmenu">{USER_SEC.filter(([k]) => !(c?.s.account && k === 'sec-bg')).map(([k, l]) => <a key={k} href="#" onClick={(e) => { e.preventDefault(); go(k); }}>{l}</a>)}</div>}
         </span>
         {showAdmin && (
           <span className="dropdown">
@@ -108,7 +123,7 @@ export function App() {
           </span>
         )}
         <a href="#" onClick={(e) => { e.preventDefault(); if (bridge) void bridge.quit(); else window.close(); }}>▤ Thoát</a>
-        {unlocked && c && <span className="who">{c.s.name}{!session.autoMode && <> · <a href="#" onClick={(e) => { e.preventDefault(); session.lock(); }}>khoá</a></>}</span>}
+        {unlocked && c && <span className="who">{c.s.name}{c.s.account && <> ({c.s.account.username})</>}{c.s.account ? <> · <a href="#" onClick={(e) => { e.preventDefault(); void session.signOut(); }}>đăng xuất</a></> : !session.autoMode && <> · <a href="#" onClick={(e) => { e.preventDefault(); session.lock(); }}>khoá</a></>}</span>}
       </div>
 
       {showPick && online && (
@@ -120,6 +135,11 @@ export function App() {
         </div>
       )}
 
+      {unlocked && biz && !biz.open && (
+        <div className="warnbar" role="alert" style={{ margin: 0, borderRadius: 0, background: '#b71c1c', color: '#fff', fontWeight: 700 }}>
+          Đã khóa nghiệp vụ ngoài giờ làm việc{biz.nextOpenAt ? `; mở lại lúc ${new Date(biz.nextOpenAt).toLocaleString('vi-VN')}` : ''}. Đọc, ghi, import và xin khóa đều bị chặn ở máy chủ. Dữ liệu đang nhập vẫn được giữ trên màn hình — hãy bấm Lưu thủ công khi hệ thống mở cửa (hệ thống KHÔNG tự gửi).
+        </div>
+      )}
       {unlocked && online && c && <UpdateBanner storageBase={c.s.storageBase} />}
       {unlocked && <ConnectionPanel onConnected={connected} />}
       <div key={String(online) + connectionVersion} className="content" onClick={() => menu && setMenu('')}>{body}</div>

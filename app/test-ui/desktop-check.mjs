@@ -174,7 +174,7 @@ try {
   await click(a.page, NAME, 'tbody tr td');
   await waitText(a.page, 'Số định danh cá nhân');
   await click(a.page, 'Khám lâm sàng', '.side nav a');
-  await waitText(a.page, 'Bạn không có thuộc tính để đọc mục này', 90000);
+  await waitText(a.page, 'Không đủ quyền đọc', 90000);
   const mt = await text(a.page);
   check(mt.includes('Mắt') && mt.includes('🔒'), 'Bác sĩ Mắt: phần Nhi khoa bị khoá 🔒 (không đủ thuộc tính), phần Mắt vẫn làm việc được');
   check(!mt.includes('Nhịp tim đều'), 'Nội dung khám Nhi không lộ cho bác sĩ chuyên khoa khác');

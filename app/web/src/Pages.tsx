@@ -19,17 +19,16 @@ export function Home({ go }: { go: (p: string) => void }) {
   useEffect(() => { void hardwareInfo()?.then(setHw); }, []);
   return (
     <Page title="Trang chủ">
-      <h2>Hệ thống hồ sơ khám sức khoẻ mã hoá (bản trình diễn)</h2>
-      <p>Dữ liệu từng mục của phiếu khám được <b>mã hoá ngay trên máy này</b> bằng CP-ABE trước khi gửi đi. Máy chủ chỉ giữ ciphertext; mỗi mục có chính sách truy cập riêng, tự sinh; khoá riêng chỉ cấp khi ít nhất 2 trên 3 tổ chức đồng thuận.</p>
+      <h2>Hồ sơ khám sức khoẻ mã hoá</h2>
       {c ? (
         <table className="kv"><tbody>
           <tr><td>Người dùng</td><td>{c.s.name}</td></tr>
           <tr><td>Thuộc tính được cấp</td><td>{c.s.attrs.map((a) => <span key={a} className="tag">{a.replace('MED:', '')}</span>)}</td></tr>
-          <tr><td>Thiết bị</td><td><code>{c.s.deviceId}</code> {isDesktop ? '(ứng dụng desktop, khoá buộc vào phần cứng)' : '(trình duyệt - chỉ dùng phát triển)'}</td></tr>
+          <tr><td>Thiết bị</td><td><code>{c.s.deviceId}</code> {isDesktop ? '(desktop)' : '(trình duyệt)'}</td></tr>
           {hw && <tr><td>Phần cứng</td><td>{hw.host} · băm <code>{hw.hash.slice(0, 12)}</code></td></tr>}
           <tr><td>Nút cấp khoá đã kết nối</td><td>{c.s.nodes.map((n) => <span key={n.org} className="tag">{n.org}{n.requiresApproval ? ' (cần duyệt điện thoại)' : ''}</span>)}</td></tr>
         </tbody></table>
-      ) : <p className="warnbar">Thiết bị đang khoá hoặc chưa đăng ký. Mở màn hình "Khám sức khỏe định kỳ" để mở khoá.</p>}
+      ) : <p className="warnbar">Thiết bị đang khoá.</p>}
       <div className="cards">
         {([['exam', 'Khám sức khỏe định kỳ'], ['import', 'Import Excel'], ['manage', 'Quản lý hồ sơ'], ['report', 'Báo cáo'], ['sec-dev', 'Bảo mật: thiết bị & khoá']] as [string, string][]).map(([k, l]) => (
           <button key={k} className="card" onClick={() => go(k)}>{l}</button>
@@ -50,7 +49,6 @@ export function Catalog() {
         {t === 'icd' && <div style={{ padding: 8 }}><IcdPicker placeholder="Tra cứu ICD-10: gõ mã hoặc tên bệnh…" /></div>}
         {t === 'dt' && <table className="grid"><tbody>{DAN_TOC.map((x) => <tr key={x}><td>{x}</td></tr>)}</tbody></table>}
       </div>
-      <p className="sub">Xét nghiệm (391 chỉ số), ICD-10, dân tộc, nghề nghiệp, tỉnh/xã là danh mục chuẩn đổi bằng <code>tools/import-danhmuc.mjs</code>. Một số khoảng tham chiếu dạng chữ (vd "(-) hoặc (+)") không được tô màu cao/thấp.</p>
     </Page>
   );
 }
@@ -59,9 +57,8 @@ export function Update() {
   return (
     <Page title="Cập nhật">
       <table className="kv"><tbody>
-        <tr><td>Phiên bản</td><td>26.10.13 (bản trình diễn)</td></tr>
-        <tr><td>Chế độ chạy</td><td>{isDesktop ? 'Ứng dụng desktop (Electron, cô lập, khoá buộc phần cứng)' : 'Trình duyệt (chỉ phát triển)'}</td></tr>
-        <tr><td>Cập nhật</td><td>Bản trình diễn không tự cập nhật. Bản thật cần cập nhật có ký số và kiểm tra chữ ký trước khi cài.</td></tr>
+        <tr><td>Phiên bản</td><td>26.10.13</td></tr>
+        <tr><td>Chế độ chạy</td><td>{isDesktop ? 'Desktop' : 'Trình duyệt'}</td></tr>
       </tbody></table>
     </Page>
   );

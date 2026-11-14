@@ -5,6 +5,7 @@ dist/
 target/
 data-demo/
 release/
+app/parent/dist-mobile/
 
 .test-runs/
 demo-abe-proof/
@@ -13,3 +14,11 @@ demo-abe-proof/
 *.log
 **/admin-secrets.json
 **/admin-package.txt
+data-research/
+TAI_KHOAN_NHAN_VIEN_DEMO.md
+
+# Ảnh y tế thật ẩn danh tải từ TCIA (CC BY 4.0) — không đưa vào git
+/du-lieu-anh/
+
+# Bí mật TOTP của tài khoản MẪU (demo) — không đưa vào git
+.demo-mfa.json

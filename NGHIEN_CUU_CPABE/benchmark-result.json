@@ -1,0 +1,134 @@
+{
+  "login_steady_state": {
+    "n": 5,
+    "medianMs": 1161.4,
+    "p95Ms": 1204.3,
+    "minMs": 1126.3,
+    "maxMs": 1204.3
+  },
+  "login_new_device": {
+    "n": 3,
+    "medianMs": 3363.5,
+    "p95Ms": 3481.6,
+    "minMs": 3311.9,
+    "maxMs": 3481.6
+  },
+  "write_hanhchinh": {
+    "baseline": {
+      "n": 12,
+      "medianMs": 22.2,
+      "p95Ms": 115.5,
+      "minMs": 18.8,
+      "maxMs": 115.5
+    },
+    "abe": {
+      "n": 12,
+      "medianMs": 162.2,
+      "p95Ms": 168.5,
+      "minMs": 147,
+      "maxMs": 168.5
+    }
+  },
+  "write_lamsang_nhi": {
+    "baseline": {
+      "n": 12,
+      "medianMs": 18,
+      "p95Ms": 45.3,
+      "minMs": 16.9,
+      "maxMs": 45.3
+    },
+    "abe": {
+      "n": 12,
+      "medianMs": 165.5,
+      "p95Ms": 424.6,
+      "minMs": 158,
+      "maxMs": 424.6
+    }
+  },
+  "read_warm_keys": {
+    "baseline": {
+      "n": 12,
+      "medianMs": 14.8,
+      "p95Ms": 16.7,
+      "minMs": 13.7,
+      "maxMs": 16.7
+    },
+    "abe": {
+      "n": 12,
+      "medianMs": 135.7,
+      "p95Ms": 233,
+      "minMs": 126.7,
+      "maxMs": 233
+    }
+  },
+  "read_cold_keys": {
+    "baseline": {
+      "n": 5,
+      "medianMs": 20.7,
+      "p95Ms": 29.7,
+      "minMs": 19.2,
+      "maxMs": 29.7
+    },
+    "abe": {
+      "n": 5,
+      "medianMs": 628.2,
+      "p95Ms": 635.7,
+      "minMs": 604.3,
+      "maxMs": 635.7
+    }
+  },
+  "key_acquisition_only": {
+    "n": 5,
+    "medianMs": 395.4,
+    "p95Ms": 413.3,
+    "minMs": 384.2,
+    "maxMs": 413.3
+  },
+  "requests_per_read": {
+    "baseline": {
+      "requests": 1,
+      "bytesSent": 0,
+      "bytesReceived": 3477
+    },
+    "abe_warm_keys": {
+      "requests": 1,
+      "bytesSent": 0,
+      "bytesReceived": 10770
+    },
+    "abe_cold_keys": {
+      "requests": 11,
+      "bytesSent": 1364,
+      "bytesReceived": 15326
+    }
+  },
+  "import_100_hanhchinh_ms": {
+    "baseline": 298,
+    "abe": 13273
+  },
+  "storage_size_per_record": {
+    "hanhchinh": {
+      "plaintextBytes": 192,
+      "baselineStoredBytes": 256,
+      "abeStoredBytes": 3846
+    },
+    "lamsang": {
+      "plaintextBytes": 117,
+      "baselineStoredBytes": 204,
+      "abeStoredBytes": 3725
+    }
+  },
+  "environment": {
+    "cpu": "AMD Ryzen 7 6800HS with Radeon Graphics         ",
+    "cores": 16,
+    "ramGB": 15.3,
+    "os": "win32 10.0.26100",
+    "node": "v24.19.0",
+    "note": "Một máy, loopback, mọi thành phần cùng máy: số đo là chi phí tính toán + số lượt gọi, KHÔNG gồm độ trễ mạng thật.",
+    "samplesPerCell": 12,
+    "pbkdf2Iterations": 600000,
+    "k": 2,
+    "nodes": 3,
+    "abeCurve": "BLS12-381 (@noble/curves, JS thuần)"
+  },
+  "generatedAt": "2026-10-30T06:47:49.839Z"
+}

@@ -9,7 +9,7 @@ import { storageUrl } from '../../security/src/client/connection.js';
 import { app, BrowserWindow, ipcMain, Menu, safeStorage, type IpcMainInvokeEvent } from 'electron';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { networkInterfaces } from 'node:os';
-import { existsSync, openSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, openSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { collectHardware, hardwareHash, matchHardware, type Hardware } from '../../security/src/hardware.js';
@@ -25,6 +25,7 @@ const UI = join(__dirname, '..', '..', 'web', 'dist', 'index.html');
 // ===== Máy chủ nhúng (chỉ bản admin đã đóng gói): kho mù Spring + 3 nút cấp khoá chạy ngầm cùng ứng dụng, không cần cài/ chạy gì thêm =====
 const SERVER_DIR = join(process.resourcesPath ?? '', 'server');
 const EMBEDDED = __EDITION__ === 'admin' && app.isPackaged && existsSync(join(SERVER_DIR, 'server.mjs'));
+const MIGRATE_FROM_OLD = app.getName() !== 'KSK';          // bản "KSK-TaiKhoan" chuyển dữ liệu từ KSK cũ; bản KSK cũ thì không
 const serverData = () => join(app.getPath('userData'), 'server-data');
 const adminPkgFile = () => (EMBEDDED ? join(serverData(), 'admin-package.txt') : app.isPackaged ? join(app.getPath('userData'), 'no-such-file') : resolve(process.env.DATA_DIR ?? 'data-demo', 'admin-package.txt'));
 /** Địa chỉ LAN của máy này (các máy nhân viên/điện thoại dùng để vào máy chủ). Đặt MEDABE_PUBLIC_HOST để ép giá trị. */
@@ -42,10 +43,15 @@ const serverUp = async () => (await up('http://127.0.0.1:8090/api/epochs')) && (
 async function startServer(): Promise<boolean> {
   if (!EMBEDDED) return true;
   if (!(await serverUp())) {
+    // NÂNG CẤP từ KSK cũ: lần đầu, nếu thư mục dữ liệu máy chủ của bản này còn trống mà KSK cũ đã có dữ liệu thì SAO CHÉP sang (bản cũ giữ nguyên để quay lại).
+    const oldData = join(app.getPath('appData'), 'KSK', 'server-data');
+    if (MIGRATE_FROM_OLD && !existsSync(join(serverData(), 'db', 'medabe.mv.db')) && existsSync(join(oldData, 'db', 'medabe.mv.db'))) {
+      try { cpSync(oldData, serverData(), { recursive: true, filter: (src) => !/medabe\.lock\.db$|app-updates|server\.log$/.test(src) }); } catch { /* không chép được: máy chủ sẽ khởi tạo dữ liệu mới */ }
+    }
     mkdirSync(serverData(), { recursive: true });
     serverProc = spawn(process.execPath, [join(SERVER_DIR, 'server.mjs')], {
       windowsHide: true, stdio: ['ignore', openSync(join(serverData(), 'server.log'), 'a'), openSync(join(serverData(), 'server.log'), 'a')],
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', NO_WEB: '1', PARENT_DIST: join(SERVER_DIR, 'parent'), DATA_DIR: serverData(), JAR_PATH: join(SERVER_DIR, 'medabe-storage.jar'), JAVA_BIN: join(SERVER_DIR, 'jre', 'bin', 'java.exe'), PORT: '8090', PUBLIC_HOST: lanIp() },
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', NO_WEB: '1', MEDABE_ACCOUNTS: '1', PARENT_DIST: join(SERVER_DIR, 'parent'), DATA_DIR: serverData(), JAR_PATH: join(SERVER_DIR, 'medabe-storage.jar'), JAVA_BIN: join(SERVER_DIR, 'jre', 'bin', 'java.exe'), PORT: '8090', PUBLIC_HOST: lanIp() },
     });
   }
   for (let i = 0; i < 240; i++) { if (await serverUp()) return true; await new Promise((r) => setTimeout(r, 500)); }
@@ -155,6 +161,8 @@ async function allowedLanServer(raw: string): Promise<boolean> {
   try {
     const base = new URL(storageUrl(raw));
     const host = base.hostname.replace(/^\[|\]$/g, '');
+    // Máy chủ ở xa (truy cập từ xa qua đường hầm): chỉ chấp nhận HTTPS với TÊN MIỀN; mọi địa chỉ IP/http vẫn phải nằm trong mạng nội bộ.
+    if (base.protocol === 'https:' && !/^(\d{1,3}(\.\d{1,3}){3}|localhost|[0-9a-f:]+)$/i.test(host)) return true;
     const addresses = await lookup(host, { all: true });
     return addresses.length > 0 && addresses.every((v) => isLanPeer(v.address));
   } catch { return false; }

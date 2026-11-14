@@ -5,6 +5,7 @@ import { UnitSelect } from './UnitSelect.js';
 import { mapHeader, mapResultHeader, rowsToHanhChinh, rowsToResults, type Row } from './excel.js';
 import { canWrite, checkMau, tuoi, validateDetailed, type FieldError, type HanhChinh, type Mau } from './model.js';
 import { session } from './session.js';
+import { sachTenAll } from './ten.js';
 import { log, run } from './ui.js';
 
 type Mode = 'moi' | 'capnhat' | 'xetnghiem';
@@ -64,7 +65,7 @@ export function ImportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
   /** CCCD đã có trong đơn vị (giải mã trên máy này: máy chủ không biết). */
   const existingSet = async () => {
     setProg({ d: 0, t: 1, what: 'Đối chiếu với hồ sơ đã có trong đơn vị (giải mã trên máy này)…' });
-    const opened = await c.openMany(await c.listGroup(unit));
+    const opened = sachTenAll(await c.openMany(await c.listGroup(unit)));
     return new Set(opened.map((o) => (o?.data as HanhChinh | undefined)?.cccd).filter(Boolean) as string[]);
   };
 
@@ -81,7 +82,7 @@ export function ImportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
         for (const [khoa, d] of Object.entries(r.lamsang)) { if (canWrite('lamsang', c.s.attrs, khoa)) inputs.push({ patientCode: r.cccd, type: 'lamsang', khoa, data: d, group: unit }); else skipped.push('lâm sàng ' + khoa); }
         if (r.ketluan) { if (canWrite('ketluan', c.s.attrs)) inputs.push({ patientCode: r.cccd, type: 'ketluan', khoa: 'KSK', data: r.ketluan, group: unit }); else skipped.push('kết luận'); }
       }
-      if (!inputs.length) { setMsg('Không có mục nào để lưu (không có hồ sơ khớp hoặc thiếu quyền ghi).'); setProg(null); return; }
+      if (!inputs.length) { setMsg('Không có mục nào để lưu.'); setProg(null); return; }
       setProg({ d: 0, t: inputs.length, what: 'Đang mã hoá và lưu kết quả khám…' });
       await c.saveMany(inputs, (d, t) => setProg({ d, t, what: 'Đang mã hoá và lưu kết quả khám…' }));
       const note = skipped.length ? ` Bỏ qua mục không có quyền ghi: ${[...new Set(skipped)].join(', ')}.` : '';
@@ -91,7 +92,7 @@ export function ImportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
       const have = await existingSet();
       const before = todo.length;
       todo = mode === 'moi' ? todo.filter((it) => !have.has(it.data.cccd)) : todo.filter((it) => have.has(it.data.cccd));
-      if (!todo.length) { setMsg(mode === 'moi' ? 'Không có hồ sơ mới (tất cả CCCD đã có trong đơn vị).' : 'Không có hồ sơ nào khớp để cập nhật.'); setProg(null); return; }
+      if (!todo.length) { setMsg(mode === 'moi' ? 'Không có hồ sơ mới.' : 'Không có hồ sơ khớp.'); setProg(null); return; }
       setProg({ d: 0, t: todo.length, what: 'Đang mã hoá và lưu…' });
       await c.saveMany(todo.map((it) => ({ patientCode: it.data.cccd, type: 'hanhchinh' as const, khoa: 'KSK', data: it.data, group: unit })), (d, t) => setProg({ d, t, what: 'Đang mã hoá và lưu…' }));
       setMsg(`${mode === 'moi' ? 'Đã thêm mới' : 'Đã cập nhật'} ${todo.length} hồ sơ${before !== todo.length ? ` (bỏ qua ${before - todo.length} dòng ${mode === 'moi' ? 'đã có trong đơn vị' : 'chưa có trong đơn vị'})` : ''} trong ${Math.round(performance.now() - t0)} ms. Chỉ 1 phép ABE cho cả lô.`);
@@ -100,7 +101,7 @@ export function ImportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
     setProg(null);
     } catch (e) { setMsg('Không import được: ' + (e as Error).message); throw e; }
     finally { setProg(null); }
-    log('Import xong - sang "Khám sức khỏe định kỳ" và bấm "Tải lại danh sách đã lưu" để xem.', 'ok');
+    log('Import xong.', 'ok');
   });
 
   const can = canWrite('hanhchinh', c.s.attrs) || mode === 'xetnghiem';
@@ -137,8 +138,7 @@ export function ImportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
           <span>Tổng số dòng: <b>{total || ''}</b></span>
         </div>
       </div>
-      {!can && <div className="warnbar">Cần vai trò Tiếp đón để import mục Hành chính.</div>}
-      {mode === 'xetnghiem' && <div className="warnbar">Chế độ "Thêm xét nghiệm" nhập kết quả khám (thể lực, nhi, mắt, TMH, RHM, phân loại) cho các hồ sơ ĐÃ CÓ trong đơn vị, từ sheet có các cột kết quả.</div>}
+      {!can && <div className="warnbar">Cần vai trò Tiếp đón.</div>}
       {prog && <div className="progress"><div style={{ width: `${(prog.d / Math.max(1, prog.t)) * 100}%` }} /><span>{prog.what} {prog.d}/{prog.t}</span></div>}
       {msg && <div className="okbar">{msg}</div>}
 
@@ -153,15 +153,15 @@ export function ImportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
               {mode === 'xetnghiem' && results.slice(0, 500).map((r) => (
                 <tr key={r.row}><td>{r.row}</td><td colSpan={2}>{r.cccd}</td><td colSpan={9}>{[r.thecuc && 'thể lực', ...Object.keys(r.lamsang).map((k) => 'lâm sàng ' + k), r.ketluan && 'kết luận'].filter(Boolean).join(', ')}</td></tr>
               ))}
-              {!total && <tr><td colSpan={12} className="muted">Chưa có dữ liệu. Bấm "B1. Chọn file".</td></tr>}
+              {!total && <tr><td colSpan={12} className="muted">Chưa có dữ liệu.</td></tr>}
             </tbody>
           </table>
-          {total > 500 && <div className="sub" style={{ padding: 6 }}>Hiển thị 500/{total} dòng đầu; toàn bộ dòng hợp lệ đều được import.</div>}
+          {total > 500 && <div className="sub" style={{ padding: 6 }}>Hiển thị 500/{total} dòng đầu.</div>}
         </div>
       </fieldset>
 
-      {fileName && !sheet && <p className="warnbar" role="alert">Không nhận diện được cột của file. Cần cột Họ tên và Số CCCD/Mã định danh; với kết quả khám cần chọn đúng chế độ Thêm xét nghiệm.</p>}
-      {mapped && mapped.missing.length > 0 && <p className="warnbar" role="alert">File thiếu cột: {mapped.missing.join(', ')}. Kiểm tra tiêu đề trước khi import.</p>}
+      {fileName && !sheet && <p className="warnbar" role="alert">Không nhận diện được cột của file.</p>}
+      {mapped && mapped.missing.length > 0 && <p className="warnbar" role="alert">File thiếu cột: {mapped.missing.join(', ')}.</p>}
       <fieldset className="grp errs"><legend>Danh sách lỗi {checked && `(${errors.length})`}</legend>
         <div className="errgrid">
           <div className="tablewrap fill">
@@ -174,7 +174,7 @@ export function ImportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
             </table>
           </div>
           <div className="errdetail">
-            {selErr ? <><b>Dòng {selErr.row}</b> · {selErr.hoTen}<br />Cột: {selErr.col}<br />Giá trị: <code>{selErr.value || '(trống)'}</code><br /><span className="bad">{selErr.msg}</span></> : <span className="muted">Chọn một dòng lỗi để xem chi tiết.</span>}
+            {selErr ? <><b>Dòng {selErr.row}</b> · {selErr.hoTen}<br />Cột: {selErr.col}<br />Giá trị: <code>{selErr.value || '(trống)'}</code><br /><span className="bad">{selErr.msg}</span></> : <span className="muted">Chọn một dòng lỗi.</span>}
           </div>
         </div>
       </fieldset>

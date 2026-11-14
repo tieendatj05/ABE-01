@@ -22,6 +22,10 @@ public class MedicalRecord {
     public String type;
     public String khoa;
     public String authorDevice;
+    /** TAC GIA THEO TAI KHOAN: backend gan tu PHIEN da xac thuc (khong lay tu client). null = ban ghi tao truoc khi co tai khoan. */
+    public String authorUserId;
+    /** Ma anh goc cua cac VUNG anh (type=vung); null voi ban ghi khac. Chi la dinh danh ngau nhien. */
+    public String refId;
     /** Chi muc tra cuu cua phu huynh (bam mot chieu cua ma tra cuu) va ban boc khoa noi dung bang khoa gia dinh. May chu khong giai ma duoc. */
     public String parentIdx;
     @JdbcTypeCode(SqlTypes.LONGVARCHAR) @Column(length = 4096) public String parentWrap;

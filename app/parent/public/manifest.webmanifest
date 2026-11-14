@@ -1,15 +1,19 @@
 {
-  "name": "Tra cứu khám sức khỏe học sinh",
-  "short_name": "KSK Phụ huynh",
-  "description": "Xem kết quả khám sức khỏe của con bằng số CCCD",
+  "id": "./",
+  "name": "Tra cứu sức khỏe",
+  "short_name": "KSK Tra cứu",
+  "description": "Tra cứu hồ sơ sức khỏe theo đúng quyền tài khoản; tự cập nhật khi có người nhập ở máy khác",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a6cc4",
   "theme_color": "#0a6cc4",
   "lang": "vi",
+  "categories": ["health", "medical", "education"],
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

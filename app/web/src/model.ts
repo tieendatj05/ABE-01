@@ -52,15 +52,21 @@ export function validateHanhChinh(h: HanhChinh): string[] {
   return e;
 }
 
-/** Quyền GHI của giao diện (gợi ý cho người dùng). Bảo mật thật nằm ở mã hoá: ai không có thuộc tính thì không đọc được. */
+/**
+ * Quyền GHI của giao diện (chỉ là GỢI Ý; backend kiểm lại bằng cùng ma trận, và quyền ĐỌC do mã hoá CP-ABE quyết định).
+ * Mô hình tác giả: Tiếp đón ghi Hành chính; Bác sĩ ghi mục lâm sàng của chuyên khoa mình được cấp (kể cả "KSK" = khám chung); KTV ghi Cận lâm sàng;
+ * Bác sĩ kết luận ghi Kết luận (chuyên khoa KSK); Nhập liệu nhập mọi mục + ảnh từ hồ sơ giấy.
+ */
 export function canWrite(type: RecordType, attrs: string[], khoa?: string): boolean {
-  const has = (a: string) => attrs.includes('MED:' + a);
+  const has = (x: string) => attrs.includes('MED:' + x);
+  if (has('Role:NhapLieu')) return true;
+  const k = khoa ?? 'KSK';
   switch (type) {
     case 'hanhchinh': return has('Role:TiepDon');
-    case 'lankham': case 'tiensu': case 'thecuc': return has('Role:BacSi');
-    case 'lamsang': return has('Role:BacSi') && has('Khoa:' + khoa);
+    case 'lankham': case 'tiensu': case 'thecuc': case 'lamsang': return has('Role:BacSi') && has('Khoa:' + k);
     case 'canlamsang': return has('Role:KTV');
-    case 'ketluan': return has('Role:KetLuan');
+    case 'ketluan': return has('Role:KetLuan') && has('Khoa:' + k);
+    default: return false;
   }
 }
 

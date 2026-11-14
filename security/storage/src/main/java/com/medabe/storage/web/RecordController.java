@@ -29,15 +29,18 @@ import tools.jackson.databind.ObjectMapper;
  */
 @RestController
 public class RecordController {
-    public record RecordIn(String id, String patientIdx, String groupIdx, String type, String khoa, String authorDevice, JsonNode envelope, String parentIdx, JsonNode parentWrap) {}
+    public record RecordIn(String id, String patientIdx, String groupIdx, String type, String khoa, String authorDevice, JsonNode envelope, String parentIdx, JsonNode parentWrap, String refId) {}
 
-    private static final Set<String> TYPES = Set.of("hanhchinh", "lankham", "tiensu", "thecuc", "lamsang", "canlamsang", "ketluan");
+    private static final Set<String> TYPES = Set.of("hanhchinh", "lankham", "tiensu", "thecuc", "lamsang", "canlamsang", "ketluan", "anh", "vung");
     private static final int MAX_ENVELOPE = 30_000_000;
     private final Repos.Records records;
     private final Repos.KeyHeaders headers;
     private final AuditService audit;
     private final Auth auth;
     private final ObjectMapper mapper;
+    /** Co mat khi bat cau noi tai khoan (medabe.research.legacy-bridge): kiem quyen theo vai tro/khoa + chuoi policy. null = hanh vi cu. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.medabe.storage.research.LegacyBridge bridge;
 
     public RecordController(Repos.Records records, Repos.KeyHeaders headers, AuditService audit, Auth auth, ObjectMapper mapper) {
         this.headers = headers; this.records = records; this.audit = audit; this.auth = auth; this.mapper = mapper;
@@ -66,6 +69,8 @@ public class RecordController {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id); m.put("patientIdx", r.patientIdx); m.put("groupIdx", r.groupIdx); m.put("type", r.type); m.put("khoa", r.khoa);
         m.put("authorDevice", r.authorDevice); m.put("createdAt", r.createdAt.toString());
+        if (r.authorUserId != null) m.put("authorUserId", r.authorUserId);
+        if (r.refId != null) m.put("refId", r.refId);
         m.put("envelope", mapper.readTree(r.envelope));
         if (r.parentIdx != null) m.put("parentIdx", r.parentIdx);
         if (r.parentWrap != null) m.put("parentWrap", mapper.readTree(r.parentWrap));
@@ -79,7 +84,9 @@ public class RecordController {
     public Map<String, Object> batch(HttpServletRequest req, @RequestBody BatchIn in) {
         DeviceEntity d = auth.device(req);
         if (in.records() == null || in.records().isEmpty() || in.records().size() > 500) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "batch phai co 1..500 ban ghi");
-        List<MedicalRecord> out = in.records().stream().map(r -> build(d, r)).toList();
+        String uid = bridge == null ? null : bridge.userIdOf(req);
+        List<MedicalRecord> out = new java.util.ArrayList<>();
+        for (RecordIn r : in.records()) out.add(build(d, r, uid, bridge == null ? r.khoa() : bridgeWrite(req, "import", r.type(), r.khoa(), r.envelope())));
         records.saveAll(out);
         audit.log(d.name, "record.create-batch", out.size() + " ban ghi, type=" + out.get(0).type);
         return Map.of("created", out.size());
@@ -89,17 +96,37 @@ public class RecordController {
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, String> create(HttpServletRequest req, @RequestBody RecordIn in) {
         DeviceEntity d = auth.device(req);
-        MedicalRecord r = records.save(build(d, in));
+        String khoa = bridge == null ? in.khoa() : bridgeWrite(req, "write", in.type(), in.khoa(), in.envelope());
+        MedicalRecord r = records.save(build(d, in, bridge == null ? null : bridge.userIdOf(req), khoa));
         audit.log(d.name, "record.create", r.id + " type=" + r.type + " khoa=" + r.khoa);
         return Map.of("id", r.id);
     }
 
-    private MedicalRecord build(DeviceEntity d, RecordIn in) {
+    /** Cau noi: quyen ghi theo (vai tro, khoa, muc) + policy cua phong bi (v2: chuoi trong phong bi; v3: policy cua header chung) phai dung ma tran. */
+    private String bridgeWrite(HttpServletRequest req, String action, String type, String khoa, JsonNode env) {
+        String hp = env != null && env.path("v").asInt(0) == 3 ? headers.findById(text(env, "headerId")).map(h -> h.policy).orElse("") : null;
+        return bridge.checkWrite(req, action, type, khoa, env, hp);
+    }
+
+    /** Cau noi: ban ghi nguoi dung KHONG duoc doc bi LOAI HAN khoi ket qua (khong lo loai/khoa/tac gia/thoi gian cua khoa khac) va khong bao gio tra ban ma. */
+    private List<Map<String, Object>> visibleList(HttpServletRequest req, java.util.Collection<MedicalRecord> rows, jakarta.servlet.http.HttpServletResponse res) {
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        int hidden = 0;
+        for (MedicalRecord r : rows) { if (bridge == null || bridge.canRead(req, r)) out.add(view(r)); else hidden++; }
+        // AN TOAN CHAN DOAN: chi tra SO LUONG muc bi han che (khong tra loai/khoa/noi dung/thoi gian), de giao dien noi ro "con muc ban khong duoc xem" thay vi hien o trong nhu the la binh thuong.
+        if (bridge != null && res != null) res.setHeader("X-Restricted-Count", String.valueOf(hidden));
+        return out;
+    }
+
+    private MedicalRecord build(DeviceEntity d, RecordIn in, String authorUserId, String khoa) {
         if (in.id() == null || !in.id().matches("[0-9a-f-]{36}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id sai");
         if (in.patientIdx() == null || !in.patientIdx().matches("[0-9a-f]{32}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "patientIdx sai");
         if (in.groupIdx() != null && !in.groupIdx().matches("[0-9a-f]{32}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "groupIdx sai");
         if (!TYPES.contains(in.type())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "type khong hop le");
-        if (in.khoa() == null || !in.khoa().matches("[A-Za-z0-9_]{1,40}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "khoa sai");
+        if (khoa == null || !khoa.matches("[A-Za-z0-9_,]{1,60}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "khoa sai");
+        boolean imagePart = "vung".equals(in.type()) || "anh".equals(in.type());
+        if (imagePart != (in.refId() != null)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "refId chi dung (va bat buoc) cho type=anh|vung");
+        if (in.refId() != null && !in.refId().matches("[0-9a-f-]{36}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "refId sai");
         if (!d.deviceId.equals(in.authorDevice())) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "authorDevice phai la thiet bi dang goi");
         validEnvelope(in.envelope());
         if (in.parentIdx() != null && !in.parentIdx().matches("[0-9a-f]{32}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "parentIdx sai");
@@ -110,7 +137,7 @@ public class RecordController {
         if (records.existsById(in.id())) throw new ResponseStatusException(HttpStatus.CONFLICT, "id da ton tai");
 
         MedicalRecord r = new MedicalRecord();
-        r.id = in.id(); r.patientIdx = in.patientIdx(); r.groupIdx = in.groupIdx(); r.type = in.type(); r.khoa = in.khoa();
+        r.id = in.id(); r.patientIdx = in.patientIdx(); r.groupIdx = in.groupIdx(); r.type = in.type(); r.khoa = khoa; r.authorUserId = authorUserId; r.refId = in.refId();
         r.parentIdx = in.parentIdx(); r.parentWrap = in.parentWrap() == null ? null : mapper.writeValueAsString(in.parentWrap());
         r.authorDevice = in.authorDevice(); r.envelope = json; r.createdAt = Instant.now(); r.updatedAt = r.createdAt;
         return r;
@@ -144,9 +171,22 @@ public class RecordController {
 
     /** Dau van tay cua mot nhom (so ban ghi + thoi diem moi nhat): may khach hoi moi vai giay, co nguoi khac nhap thi tai lai danh sach. */
     @GetMapping("/api/records/version")
-    public Map<String, Object> groupVersion(HttpServletRequest req, @RequestParam String groupIdx, @RequestParam String type) {
+    public Map<String, Object> groupVersion(HttpServletRequest req, @RequestParam(required = false) String groupIdx, @RequestParam(required = false) String type,
+                                            @RequestParam(required = false) String patientIdx) {
         auth.device(req);
-        if (!groupIdx.matches("[0-9a-f]{32}") || !TYPES.contains(type)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "tham so sai");
+        if (patientIdx != null) {
+            // App tra cuu: "ho so cua benh nhan nay co gi moi chua?". CHI dem cac muc tai khoan nay DUOC XEM (khong lo co them muc cua khoa khac),
+            // khong ghi nhat ky / khong tinh vao canh bao doc nhieu (hoi moi vai giay), va rat re (khong tra ban ma).
+            if (!patientIdx.matches("[0-9a-f]{32}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "tham so sai");
+            int n = 0; String last = "";
+            for (MedicalRecord r : records.findByPatientIdxOrderByCreatedAtAsc(patientIdx)) {
+                if (bridge != null && !bridge.canRead(req, r)) continue;
+                n++; String t = r.createdAt.toString(); if (t.compareTo(last) > 0) last = t;
+            }
+            Map<String, Object> m = new LinkedHashMap<>(); m.put("n", n); m.put("last", last);
+            return m;
+        }
+        if (groupIdx == null || type == null || !groupIdx.matches("[0-9a-f]{32}") || !TYPES.contains(type)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "tham so sai");
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("n", records.countByGroupIdxAndType(groupIdx, type));
         m.put("last", records.findFirstByGroupIdxAndTypeOrderByCreatedAtDesc(groupIdx, type).map(r -> r.createdAt.toString()).orElse(""));
@@ -154,16 +194,18 @@ public class RecordController {
     }
 
     @GetMapping("/api/records")
-    public List<Map<String, Object>> list(HttpServletRequest req, @RequestParam(required = false) String patientIdx,
+    public List<Map<String, Object>> list(HttpServletRequest req, jakarta.servlet.http.HttpServletResponse res, @RequestParam(required = false) String patientIdx,
                                           @RequestParam(required = false) String groupIdx, @RequestParam(required = false) String type) {
         DeviceEntity d = auth.device(req);
         if (patientIdx != null && patientIdx.matches("[0-9a-f]{32}")) {
+            if (bridge != null) bridge.auditPrivilegedRead(req, "list patientIdx=" + patientIdx.substring(0, 8));
             audit.log(d.name, "record.list", "patientIdx=" + patientIdx.substring(0, 8));
-            return records.findByPatientIdxOrderByCreatedAtAsc(patientIdx).stream().map(this::view).toList();
+            return visibleList(req, records.findByPatientIdxOrderByCreatedAtAsc(patientIdx), res);
         }
         if (groupIdx != null && groupIdx.matches("[0-9a-f]{32}") && type != null && TYPES.contains(type)) {
+            if (bridge != null) bridge.auditPrivilegedRead(req, "list-group groupIdx=" + groupIdx.substring(0, 8) + " type=" + type);
             audit.log(d.name, "record.list-group", "groupIdx=" + groupIdx.substring(0, 8) + " type=" + type);
-            return records.latestByGroupAndType(groupIdx, type).stream().limit(5000).map(this::view).toList();
+            return visibleList(req, records.latestByGroupAndType(groupIdx, type).stream().limit(5000).toList(), null);
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "can patientIdx, hoac groupIdx kem type");
     }
@@ -203,7 +245,8 @@ public class RecordController {
     public Map<String, Object> delete(HttpServletRequest req, @PathVariable String id) {
         DeviceEntity d = auth.device(req);
         MedicalRecord r = records.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "khong co ban ghi"));
-        if (!d.deviceId.equals(r.authorDevice)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "chi thiet bi da tao ban ghi moi duoc xoa");
+        if (bridge != null) bridge.checkDelete(req, r);        // tac gia theo TAI KHOAN + con quyen ghi muc nay
+        else if (!d.deviceId.equals(r.authorDevice)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "chi thiet bi da tao ban ghi moi duoc xoa");
         records.delete(r);
         audit.log(d.name, "record.delete", id + " type=" + r.type);
         return Map.of("ok", true);
@@ -213,6 +256,7 @@ public class RecordController {
     public Map<String, Object> one(HttpServletRequest req, @PathVariable String id) {
         DeviceEntity d = auth.device(req);
         MedicalRecord r = records.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "khong co ban ghi"));
+        if (bridge != null) { bridge.checkRead(req, r); bridge.auditPrivilegedRead(req, "fetch id=" + id.substring(0, Math.min(8, id.length()))); }
         audit.log(d.name, "record.fetch", id);
         return view(r);
     }
@@ -226,6 +270,7 @@ public class RecordController {
         DeviceEntity d = auth.device(req);
         validEnvelope(env);
         MedicalRecord r = records.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "khong co ban ghi"));
+        if (bridge != null) { bridge.checkRead(req, r); bridge.checkPolicyString(env.path("abe").path("policy").asString(""), r.type, r.khoa, r.authorUserId); }
         JsonNode old = mapper.readTree(r.envelope);
         if (old.path("v").asInt(0) == 3) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ban ghi dung header chung: dung PUT /api/headers/{id}");
         if (!text(old, "iv").equals(text(env, "iv")) || !text(old, "ciphertext").equals(text(env, "ciphertext")))
@@ -235,6 +280,7 @@ public class RecordController {
         r.updatedAt = Instant.now();
         records.save(r);
         audit.log(d.name, "record.rewrap", id);
+        if (bridge != null) audit.log(java.util.Objects.requireNonNullElse(bridge.userIdOf(req), d.name), "v2.record.rewrap", "id=" + id.substring(0, Math.min(8, id.length())) + " thiet-bi=" + d.deviceId);
         return Map.of("ok", true);
     }
 }

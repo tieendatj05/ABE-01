@@ -21,6 +21,8 @@ public class KeyHeaderEntity {
     public String wrapIv;
     @Column(length = 200) public String wrappedDek;
     public String authorDevice;
+    /** Tac gia theo tai khoan (backend gan tu phien). null = header cu. */
+    public String authorUserId;
     public Instant createdAt;
     public Instant updatedAt;
     @JdbcTypeCode(SqlTypes.LONGVARCHAR) @Column(length = 1_000_000) public String prevJson;

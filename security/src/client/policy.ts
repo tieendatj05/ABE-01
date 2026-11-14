@@ -5,7 +5,8 @@
 import { versioned, type EpochDirectory } from '../common/epoch.js';
 
 export const SECTION_TYPES = ['hanhchinh', 'lankham', 'tiensu', 'thecuc', 'lamsang', 'canlamsang', 'ketluan'] as const;
-export type RecordType = (typeof SECTION_TYPES)[number];
+/** 'anh' (ảnh gốc, chỉ tác giả đọc) và 'vung' (một vùng ảnh có khoá riêng) chỉ dùng ở chế độ tài khoản; không thuộc SECTION_TYPES (không có nhóm/đơn vị). */
+export type RecordType = (typeof SECTION_TYPES)[number] | 'anh' | 'vung';
 
 export interface RecordProfile {
   type: RecordType;
@@ -14,6 +15,8 @@ export interface RecordProfile {
   authorDevice: string;   // deviceId của máy tạo bản ghi
   /** Bản ghi nhập LÔ dùng header chung: không có nhánh phá-vỡ-kính theo bệnh nhân (header chung không thể gắn thuộc tính của một bệnh nhân). */
   bulk?: boolean;
+  /** Chế độ tài khoản: userId của TÁC GIẢ (backend gán). Thiếu = bản ghi cũ không biết tác giả theo tài khoản. */
+  authorUserId?: string;
 }
 
 /** Mỗi phần tử là một nhánh OR gồm các thuộc tính AND (thuộc tính GỐC, chưa gắn epoch). */
@@ -44,6 +47,8 @@ function branches(p: RecordProfile): string[][] {
       return all([author, ['MED:Role:KTV', 'MED:Khoa:XetNghiem'], doctor, ketLuan, bg]);
     case 'ketluan':
       return all([author, ketLuan, doctor, bg]);
+    default:
+      throw new Error('Loại bản ghi không có chính sách ở chế độ thiết bị: ' + p.type);
   }
 }
 

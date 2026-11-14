@@ -43,3 +43,9 @@ export function useBase() {
   useEffect(() => { void defaultStorageBase().then(setBase); }, []);
   return base;
 }
+
+/** Trạng thái giờ làm việc (chế độ tài khoản): đóng cửa chỉ khoá thao tác nghiệp vụ, KHÔNG gỡ màn hình/xoá dữ liệu đang nhập. */
+export function useBusiness() {
+  useSyncExternalStore((cb) => session.subscribe(cb), () => session.business?.open ?? null);
+  return session.business;
+}

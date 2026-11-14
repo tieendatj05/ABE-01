@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import {
   DAN_TOC, DIA_CHI, DOI_TUONG, LAM_SANG, MAU_NHANH, MAU_XN, NGHE_NGHIEP, NGUON_CHI_TRA, NHOM_MAU, PHAN_LOAI, QUAN_HE, TIEN_SU, flag, searchXetNghiem, xetNghiemOf, type LamSangData, type Sex,
 } from './data/catalog.js';
+import { chuKyFor } from './data/chuky.js';
 import { IcdPicker } from './IcdPicker.js';
 import { bmi, tuoi, type CanLamSang, type HanhChinh, type KetLuan, type LanKham, type TheLuc, type TienSu } from './model.js';
 
@@ -16,7 +17,7 @@ export const F = ({ label, children, req }: { label: string; children: ReactNode
 const Strip = ({ children }: { children: ReactNode }) => <div className="strip">{children}</div>;
 const Opts = ({ list }: { list: readonly string[] }) => <>{list.map((x) => <option key={x}>{x}</option>)}</>;
 
-export function PanelHanhChinh({ d, set, off, child, lockCccd }: P<HanhChinh> & { child: boolean; lockCccd: boolean }) {
+export function PanelHanhChinh({ d, set, off, child, lockCccd, dup }: P<HanhChinh> & { child: boolean; lockCccd: boolean; dup?: string }) {
   const u = (p: Partial<HanhChinh>) => set({ ...d, ...p });
   const g = (p: Partial<HanhChinh['giamHo']>) => set({ ...d, giamHo: { ...d.giamHo, ...p } });
   return (
@@ -56,6 +57,7 @@ export function PanelHanhChinh({ d, set, off, child, lockCccd }: P<HanhChinh> & 
         <label className="lbl">Nghề nghiệp</label>
         <div className="ctl wide"><select disabled={off} value={d.ngheNghiep ?? ''} onChange={(e) => u({ ngheNghiep: e.target.value })}><option /><Opts list={NGHE_NGHIEP} /></select></div>
       </div>
+      {dup && <div className="warnbar" role="alert">⚠ {dup}</div>}
 
       {child && (
         <>
@@ -122,11 +124,13 @@ export function PanelTheLuc({ d, set, off }: P<TheLuc>) {
 export interface SignMeta { name: string; ok: boolean; deviceId: string }
 
 /** Khám lâm sàng: mỗi chuyên khoa một khối (một bản ghi mã hoá riêng), mỗi mục có Kết quả + Phân loại; bên phải là họ tên và CHỮ KÝ SỐ của bác sĩ. */
-export function PanelLamSang({ ls, setLs, can, denied, child, meta, onNormal, onClear, onLoad }: {
+export function PanelLamSang({ ls, setLs, can, denied, child, meta, onNormal, onClear, onLoad, custom = [], onSaveMau, onDeleteMau }: {
   ls: Record<string, LamSangData>; setLs: (k: string, v: LamSangData) => void;
   can: (khoa: string) => boolean; denied: Record<string, boolean>; child: boolean;
   meta: Record<string, SignMeta | undefined>;
   onNormal: () => void; onClear: () => void; onLoad: (name: string) => void;
+  /** Mẫu do người dùng tự lưu (khác các mẫu có sẵn) + lưu/xoá mẫu như nút "Lưu/Xóa mẫu mặc định" của app cũ. */
+  custom?: string[]; onSaveMau?: (name: string) => void; onDeleteMau?: (name: string) => void;
 }) {
   const [mau, setMau] = useState('');
   const shown = LAM_SANG.filter((k) => child || k.khoa !== 'Nhi');
@@ -141,7 +145,10 @@ export function PanelLamSang({ ls, setLs, can, denied, child, meta, onNormal, on
           <label>Load:</label>
           <select value={mau} onChange={(e) => { setMau(e.target.value); if (e.target.value) onLoad(e.target.value); }}>
             <option value="" />{Object.keys(MAU_NHANH).map((m) => <option key={m}>{m}</option>)}
+            {custom.map((m) => <option key={'c:' + m} value={m}>★ {m}</option>)}
           </select>
+          {onSaveMau && <button className="act" title="Lưu nội dung đang khám làm mẫu mặc định" onClick={() => { const n = window.prompt('Tên mẫu mặc định (ví dụ: bình thường + cận thị 3 độ):', mau && !(mau in MAU_NHANH) ? mau : ''); if (n && n.trim()) { onSaveMau(n.trim()); setMau(n.trim()); } }}>💾 Lưu mẫu</button>}
+          {onDeleteMau && <button className="act" disabled={!custom.includes(mau)} title="Xóa mẫu do bạn đã lưu (mẫu có sẵn không xóa được)" onClick={() => { if (custom.includes(mau) && window.confirm(`Xóa mẫu "${mau}"?`)) { onDeleteMau(mau); setMau(''); } }}>🗑 Xóa mẫu</button>}
         </span>
       </div>
       {shown.map((k, idx) => {
@@ -150,7 +157,7 @@ export function PanelLamSang({ ls, setLs, can, denied, child, meta, onNormal, on
         const m = meta[k.khoa];
         return (
           <div key={k.khoa} className="lsblock">
-            <h3>{idx + 1}. {k.ten} {denied[k.khoa] && <span className="lock">🔒 Bạn không có thuộc tính để đọc mục này</span>}</h3>
+            <h3>{idx + 1}. {k.ten} {denied[k.khoa] && <span className="lock">🔒 Không hiển thị với tài khoản của bạn (khoa khác / chưa có dữ liệu) — không suy ra là bình thường</span>}</h3>
             {!denied[k.khoa] && d && (
               <div className="lsgrid">
                 <div>
@@ -168,14 +175,25 @@ export function PanelLamSang({ ls, setLs, can, denied, child, meta, onNormal, on
                 </div>
                 <div className="signbox">
                   <div className="signhead">Họ tên và chữ ký bác sĩ</div>
-                  {m ? (
-                    <div className={m.ok ? 'stamp ok' : 'stamp bad'}>
-                      <b>{m.name}</b>
-                      <div>{m.ok ? '✔ Chữ ký số hợp lệ' : '✘ CHỮ KÝ KHÔNG HỢP LỆ'}</div>
-                      <small>thiết bị {m.deviceId}</small>
-                      <small>chứng chỉ do registry cấp</small>
-                    </div>
-                  ) : <div className="stamp none">Chưa ký<br /><small>sẽ được ký số bằng khoá thiết bị khi lưu</small></div>}
+                  {(() => {
+                    const sig = chuKyFor(m?.name ?? '', k.khoa);
+                    return m ? (
+                      <div className={m.ok ? 'stamp ok' : 'stamp bad'}>
+                        {m.ok && sig && <img className="signimg" src={sig.src} alt={`Chữ ký ${sig.ten}`} />}
+                        <b>{m.name}</b>
+                        <div>{m.ok ? '✔ Chữ ký số hợp lệ' : '✘ CHỮ KÝ KHÔNG HỢP LỆ'}</div>
+                        {m.ok && sig && !sig.theoTen && <small>ảnh mẫu: BS {sig.ten}</small>}
+                        <small>thiết bị {m.deviceId}</small>
+                        <small>chứng chỉ do registry cấp</small>
+                      </div>
+                    ) : (
+                      <div className="stamp none">
+                        {sig && <img className="signimg sample" src={sig.src} alt={`Chữ ký mẫu ${sig.ten}`} />}
+                        Chưa ký số
+                        <small>{sig ? `chữ ký mẫu của BS ${sig.ten}; ` : ''}sẽ được ký số bằng khoá thiết bị khi lưu</small>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

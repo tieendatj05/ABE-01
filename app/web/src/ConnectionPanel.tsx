@@ -13,7 +13,7 @@ export function ConnectionPanel({ onConnected }: { onConnected: () => void }) {
   const connected = useRef(onConnected); connected.current = onConnected;
 
   const establish = async (base: string) => {
-    if (!(await allowedServer(base))) throw new Error('Máy chủ không thuộc mạng nội bộ hiện tại.');
+    if (!(await allowedServer(base))) throw new Error('Máy chủ không thuộc mạng nội bộ.');
     await session.reconnect(base);
     if (!alive.current) return;
     setAddress(session.client!.s.storageBase); setStatus('ready'); setMessage(''); setEditing(false);
@@ -29,7 +29,7 @@ export function ConnectionPanel({ onConnected }: { onConnected: () => void }) {
       for (const server of candidates) {
         try { await establish(server.url); return; } catch { session.suspendNetwork(); }
       }
-      throw new Error('Không tìm thấy máy chủ KSK đã đăng ký trên mạng nội bộ. Hãy bật KSK Admin và kết nối hai máy vào cùng Wi-Fi/LAN.');
+      throw new Error('Không tìm thấy máy chủ KSK trên mạng nội bộ.');
     } catch (e) {
       session.suspendNetwork();
       if (alive.current) { setMessage((e as Error).message); setStatus('error'); }
@@ -55,13 +55,12 @@ export function ConnectionPanel({ onConnected }: { onConnected: () => void }) {
     return () => { alive.current = false; clearInterval(timer); session.suspendNetwork(); };
   }, []);
   return <div className="connectionbar" role="status">
-    <span>{status === 'ready' ? '● Đã kết nối: ' + session.client!.s.storageBase : status === 'checking' ? 'Đang tìm máy chủ KSK trong Wi-Fi/LAN…' : message}</span>
+    <span>{status === 'ready' ? '● Đã kết nối: ' + session.client!.s.storageBase : status === 'checking' ? 'Đang tìm máy chủ…' : message}</span>
     <button onClick={() => setEditing(!editing)}>Đổi máy chủ</button>
     <button disabled={status === 'checking'} onClick={() => void recover()}>Tìm máy chủ trong mạng</button>
     {(editing || status === 'error') && <div className="row">
       <input aria-label="Địa chỉ máy chủ" placeholder="http://IP-máy-quản-trị:8090" value={address} onChange={(e) => setAddress(e.target.value)} />
       <button disabled={status === 'checking' || !address.trim()} onClick={() => void recover(address)}>Kết nối và tải lại</button>
-      <small>Không cần Internet. Mạng Wi-Fi phải cho phép hai máy liên lạc; máy chủ và thiết bị vẫn cần đúng quyền đăng ký.</small>
     </div>}
   </div>;
 }

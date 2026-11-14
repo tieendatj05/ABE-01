@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 @EnableJpaRepositories(basePackages = "com.medabe.storage.domain", considerNestedRepositories = true)
-@EnableConfigurationProperties(MedProps.class)
+@EnableConfigurationProperties({MedProps.class, com.medabe.storage.research.ResearchProps.class, com.medabe.storage.research.NetworkProps.class})
 public class StorageApplication {
     public static void main(String[] args) {
         SpringApplication.run(StorageApplication.class, args);

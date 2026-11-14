@@ -1,153 +1,108 @@
-import { useEffect, useRef, useState } from 'react';
-import { MedClient } from '../../../security/src/index.js';
-import { bridge } from './bridge.js';
-import { defaultStorageBase, hasVault, session, setStorageBase, wipeVault } from './session.js';
-import { discoverServers, enrollmentAt } from './network.js';
-import { log, run } from './ui.js';
+import { useEffect, useState } from 'react';
+import { MedClient, PasswordChangeRequiredError } from '../../../security/src/index.js';
+import { defaultStorageBase, session } from './session.js';
+import { discoverServers } from './network.js';
+import { log } from './ui.js';
 
-const ORGS = ['BenhVien', 'SoYTe', 'DienThoai'];
+const explain = (e: unknown): string => {
+  const m = e instanceof Error ? e.message : String(e);
+  const code = m.split(/[ (:]/)[0];
+  return ({
+    BAD_CREDENTIALS: 'Sai email hoặc mật khẩu.', ACCOUNT_LOCKED: 'Tài khoản tạm khóa do nhập sai nhiều lần. Thử lại sau ít phút.', DENY_ACCOUNT_DISABLED: 'Tài khoản đã bị khóa. Hãy liên hệ quản trị.',
+    PASSWORD_WEAK: 'Mật khẩu mới quá yếu: tối thiểu 10 ký tự (vai trò Giám sát: tối thiểu 14 ký tự), có cả chữ và số.', PASSWORD_REUSED: 'Mật khẩu mới phải khác mật khẩu tạm.', STEP_UP_FAILED: 'Mật khẩu hiện tại không đúng.',
+    DEVICE_LIMIT: 'Tài khoản đã đăng ký đủ số máy tối đa. Nhờ quản trị thu hồi bớt máy cũ.', LOGIN_RATE_LIMIT: 'Đăng nhập quá nhiều lần, thử lại sau.', FORGOT_RATE_LIMIT: 'Gửi yêu cầu quá nhiều lần, thử lại sau ít phút.',
+    DENY_PENDING_APPROVAL: 'Tài khoản đang chờ một quản trị viên KHÁC duyệt. Hãy liên hệ quản trị.', DENY_REMOTE_ACCESS: 'Tài khoản này không được dùng qua Internet. Hãy đăng nhập trong mạng nội bộ.',
+  } as Record<string, string>)[code] ?? m;
+};
 
 /**
- * Vào ứng dụng. Lần đầu: chỉ cần NHẬP TÊN (quyền do quản trị đặt sẵn, người dùng không phải chọn gì). Có tuỳ chọn tự mở khoá để các lần
- * sau mở app là dùng ngay. Quản trị có thể tắt đăng ký tự do - khi đó cần "gói đăng ký" do quản trị cấp (phần Nâng cao).
+ * Đăng nhập bằng TÀI KHOẢN do công ty cấp (email + mật khẩu). Quản trị tạo tài khoản và đưa mật khẩu TẠM; lần đầu nhân viên phải tự đặt mật khẩu mới
+ * (sau đó quản trị không biết mật khẩu). Vai trò, khoa và quyền do máy chủ quản lý — người dùng không tự chọn gì.
  */
 export function Gate() {
   const [base, setBase] = useState('');
-  const [vault, setVault] = useState<boolean | null>(null);
-  const [auto, setAuto] = useState<'pending' | 'no'>('pending');
-  const [open, setOpen] = useState<boolean | null>(null);
-  const [name, setName] = useState('');
-  const [autoUnlock, setAutoUnlock] = useState(true);
+  const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
-  const [pkg, setPkg] = useState('');
-  const [invite, setInvite] = useState('');
-  const [codes, setCodes] = useState<Record<string, string>>({});
-  const [pass1, setPass1] = useState('');
-  const [failed, setFailed] = useState(false);
-  const [reach, setReach] = useState<boolean | null>(null);
-  const [addr, setAddr] = useState('');
-  const started = useRef(false);
-  const searching = useRef(false);
-  const [servers, setServers] = useState<{ url: string; registryPk: string }[]>([]);
+  const [n1, setN1] = useState('');
+  const [n2, setN2] = useState('');
+  const [needNew, setNeedNew] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [finding, setFinding] = useState(false);
+  const [forgot, setForgot] = useState(false);       // đang ở màn "Quên mật khẩu"
+  const [sent, setSent] = useState(false);
 
-  useEffect(() => {
-    void (async () => {
-      setBase(await defaultStorageBase());
-      setVault(await hasVault());
-      await session.tryAutoUnlock().catch(() => false);
-      setAuto('no');
-    })();
-  }, []);
-  const check = async (b: string) => {
-    if (searching.current) return;
-    searching.current = true;
+  useEffect(() => { void defaultStorageBase().then(setBase); }, []);
+
+  const mismatch = needNew && n1 !== n2;
+  const submit = async () => {
+    if (busy || mismatch) return;
+    setBusy(true); setErr('');
     try {
-      try { setOpen(await enrollmentAt(b)); setReach(true); return; } catch { /* IP cũ hoặc máy chủ chưa bật */ }
-      const found = await discoverServers(); setServers(found);
-      if (found.length !== 1) { setReach(false); return; }
-      const next = found[0].url;
-      const isOpen = await enrollmentAt(next);
-      await setStorageBase(next); setBase(next); setAddr(next); setOpen(isOpen); setReach(true);
-    } catch { setReach(false); }
-    finally { searching.current = false; }
+      await session.signIn(base, email.trim(), pass, needNew ? n1 : undefined);
+      log('Đã đăng nhập.', 'ok');
+    } catch (e) {
+      if (e instanceof PasswordChangeRequiredError) { setNeedNew(true); setErr('Đây là mật khẩu TẠM do quản trị cấp. Hãy đặt mật khẩu mới của riêng bạn (quản trị sẽ không biết mật khẩu này).'); }
+      else setErr(explain(e));
+    } finally { setBusy(false); }
   };
-  useEffect(() => {
-    if (!base || vault !== false) return;
-    setAddr(base); void check(base);
-    const timer = setInterval(() => { if (!started.current) void check(base); }, 5000);
-    return () => clearInterval(timer);
-  }, [base, vault]);
+  /** Quên mật khẩu: chỉ báo cho quản trị (không đổi gì). Luôn hiện cùng một thông báo dù email có tồn tại hay không. */
+  const sendForgot = async () => {
+    if (busy || !email.trim()) return;
+    setBusy(true); setErr('');
+    try { await MedClient.requestPasswordReset(base, email.trim()); setSent(true); }
+    catch (e) { setErr(explain(e)); }
+    finally { setBusy(false); }
+  };
+  const find = async () => {
+    setFinding(true); setErr('');
+    try {
+      const found = await discoverServers();
+      if (found.length) setBase(found[0].url); else setErr('Không tìm thấy máy chủ trong mạng. Nhập địa chỉ do quản trị cung cấp (vd https://192.168.1.10:8443).');
+    } finally { setFinding(false); }
+  };
 
-  // Máy mới + đăng ký tự do đang bật: tự đăng ký luôn, không hỏi gì (tên lấy theo tên máy; quyền do quản trị đặt sẵn).
-  useEffect(() => {
-    if (!bridge || !base || vault !== false || open !== true || started.current) return;
-    started.current = true;
-    void (async () => {
-      try {
-        const host = (await bridge.hardware()).host || 'May-tram';
-        await session.quickSetup(base, host, true);
-        log('Đã sẵn sàng. Khoá riêng được tạo trên máy này và không rời khỏi máy.', 'ok');
-      } catch (e) { setFailed(true); log('Tự đăng ký thất bại: ' + (e as Error).message, 'err'); }
-    })();
-  }, [base, vault, open]);
-
-  if (vault === false && reach === false) {
-    return (
-      <section>
-        <h2>Không kết nối được máy chủ</h2>
-        <p>Đang tự tìm KSK Admin trong mạng nội bộ. Kết nối cùng Wi-Fi/LAN với máy Admin để làm việc.</p>
-        {servers.length > 1 && <p>Có nhiều máy chủ trong mạng. Chọn đúng máy quản trị:</p>}
-        {servers.map((server) => <button key={server.url} onClick={() => void (async () => { await setStorageBase(server.url); setBase(server.url); })()}>{server.url}</button>)}
-        <p className="warnbar">Không thấy máy chủ tại <b>{base}</b>. Hãy kiểm tra máy quản trị đã bật KSK chưa, cùng mạng wifi/LAN chưa, và tường lửa đã mở cổng (chạy <code>npm run parent:firewall</code> trên máy quản trị).</p>
-        <input placeholder="Địa chỉ máy chủ, ví dụ http://192.168.1.39:8090" value={addr} onChange={(e) => setAddr(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addr.trim() && void (async () => { await setStorageBase(addr.trim()); setBase(addr.trim().replace(/\/+$/, '')); })()} />
-        <button disabled={!addr.trim()} onClick={() => void (async () => { await setStorageBase(addr.trim()); const b = addr.trim().replace(/\/+$/, ''); if (b === base) void check(b); else setBase(b); })()}>Kết nối</button>
-      </section>
-    );
-  }
-  if (vault === false && reach === null) return <div className="gatewrap"><p className="sub">Đang kết nối máy chủ…</p></div>;
-  if (bridge && vault === false && open === true && !failed) return <div className="gatewrap"><p className="sub">Đang chuẩn bị máy này…</p></div>;
-  if (vault === null || (vault && auto === 'pending')) return <div className="gatewrap"><p className="sub">Đang mở…</p></div>;
-
-  // ===== Đã đăng ký: mở khoá bằng passphrase =====
-  if (vault) {
-    return (
-      <section>
-        <h2>Nhập passphrase để mở</h2>
-        <div className="row">
-          <input type="password" placeholder="Passphrase" value={pass} autoFocus autoComplete="current-password"
-            onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void run('Mở khoá', () => session.unlock(pass))} />
-          <button onClick={() => void run('Mở khoá', () => session.unlock(pass))}>Mở khoá</button>
-        </div>
-        <p className="sub">Kho khoá được bảo vệ bằng passphrase <b>và</b> khoá của máy này. Chép sang máy khác sẽ không mở được.</p>
-        <a href="#" className="bad" onClick={(e) => { e.preventDefault(); if (confirm('Xoá khoá trên máy này? Bạn sẽ phải đăng ký lại.')) void wipeVault().then(() => setVault(false)); }}>Quên passphrase? Xoá và đăng ký lại</a>
-      </section>
-    );
-  }
-
-  // ===== Lần đầu =====
-  const quick = () => run('Đăng ký', async () => {
-    await session.quickSetup(base, name, autoUnlock && !!bridge, pass);
-    log('Xong! Bạn có thể bắt đầu làm việc. Khoá riêng được tạo trên máy này và không rời khỏi máy.', 'ok');
-  });
-  const advanced = () => run('Đăng ký bằng gói', async () => {
-    const p = new URLSearchParams(pkg.trim().replace(/^.*\?/, ''));
-    const i = invite.trim() || p.get('i') || '';
-    const all: Record<string, string> = { ...Object.fromEntries(p.getAll('a').map((x) => { const j = x.indexOf(':'); return [x.slice(0, j), x.slice(j + 1)]; })), ...codes };
-    await session.setup(base, i, ORGS.filter((o) => all[o]?.trim()).map((o) => [o, all[o].trim()] as [string, string]), pass1);
-    log('Đăng ký xong.', 'ok');
-  });
+  if (forgot) return (
+    <section>
+      <h2>Quên mật khẩu</h2>
+      {sent ? (
+        <>
+          <p className="ok" role="status">✔ Đã gửi yêu cầu tới quản trị.</p>
+          <p style={{ color: '#5d6b79' }}>Nếu email này có trong hệ thống, quản trị sẽ <b>liên hệ xác minh bạn</b> (gọi lại số điện thoại đã đăng ký hoặc gặp trực tiếp) rồi đưa <b>mật khẩu tạm</b>. Đăng nhập bằng mật khẩu tạm đó và đặt mật khẩu mới của riêng bạn. Yêu cầu hết hạn sau 72 giờ.</p>
+        </>
+      ) : (
+        <>
+          <p style={{ marginTop: 0, color: '#5d6b79' }}>Nhập email công ty của bạn. Hệ thống chỉ <b>báo cho quản trị</b>; bạn sẽ nhận mật khẩu tạm trực tiếp từ quản trị sau khi họ xác minh đúng là bạn. Hệ thống không tự gửi mật khẩu qua email hay tin nhắn.</p>
+          <input type="email" placeholder="Email công ty (vd ten@congty.vn)" value={email} autoFocus autoComplete="username" onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void sendForgot()} />
+          <button disabled={busy || !email.trim()} onClick={() => void sendForgot()}>{busy ? 'Đang gửi…' : 'Gửi yêu cầu cấp lại mật khẩu'}</button>
+        </>
+      )}
+      {err && <p className="bad" role="alert">{err}</p>}
+      <p><a href="#" onClick={(e) => { e.preventDefault(); setForgot(false); setSent(false); setErr(''); }}>← Quay lại đăng nhập</a></p>
+    </section>
+  );
 
   return (
     <section>
-      <h2>Chào mừng đến MedABE</h2>
-      {open === false ? (
-        <p className="warnbar">Quản trị đang <b>tắt</b> đăng ký tự do. Hãy nhờ quản trị cấp <b>gói đăng ký</b> rồi dán vào phần "Nâng cao" bên dưới.</p>
-      ) : (
+      <h2>Đăng nhập MedABE</h2>
+      <p style={{ marginTop: 0, color: '#5d6b79' }}>Dùng email và mật khẩu do công ty cấp. Lần đầu bạn sẽ được yêu cầu đặt mật khẩu mới.</p>
+      <input type="email" placeholder="Email công ty (vd ten@congty.vn)" value={email} autoFocus autoComplete="username" onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
+      <input type="password" placeholder={needNew ? 'Mật khẩu tạm (do quản trị cấp)' : 'Mật khẩu'} value={pass} autoComplete="current-password" onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
+      {needNew && (
         <>
-          <p className="sub">Chỉ cần nhập tên của bạn để bắt đầu. Dữ liệu được mã hoá ngay trên máy này; máy chủ không đọc được.</p>
-          <input placeholder="Họ và tên của bạn" value={name} autoFocus onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && name.trim() && void quick()} />
-          {bridge && (
-            <label className="radio" style={{ marginBottom: 8 }}>
-              <input type="checkbox" checked={autoUnlock} onChange={(e) => setAutoUnlock(e.target.checked)} />
-              Tự mở khoá trên máy này (không hỏi passphrase mỗi lần mở)
-            </label>
-          )}
-          {(!autoUnlock || !bridge) && <input type="password" placeholder="Đặt passphrase (tối thiểu 8 ký tự)" value={pass} autoComplete="new-password" onChange={(e) => setPass(e.target.value)} />}
-          <button disabled={!name.trim() || ((!autoUnlock || !bridge) && pass.length < 8)} onClick={() => void quick()}>Bắt đầu</button>
+          <input type="password" placeholder="Mật khẩu mới (≥10 ký tự, Giám sát ≥14, có chữ và số)" value={n1} autoComplete="new-password" onChange={(e) => setN1(e.target.value)} />
+          <input type="password" placeholder="Nhập lại mật khẩu mới" value={n2} autoComplete="new-password" onChange={(e) => setN2(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void submit()} />
+          {mismatch && <p className="bad">Hai lần nhập mật khẩu mới chưa khớp.</p>}
         </>
       )}
-
-      <details style={{ marginTop: 16 }} open={open === false}>
-        <summary>Nâng cao: dùng gói đăng ký do quản trị cấp / đổi địa chỉ máy chủ</summary>
+      <button disabled={busy || !email.trim() || !pass || (needNew && (!n1 || mismatch))} onClick={() => void submit()}>{busy ? 'Đang đăng nhập…' : needNew ? 'Đặt mật khẩu mới và đăng nhập' : 'Đăng nhập'}</button>
+      {err && <p className={needNew && err.startsWith('Đây là') ? 'warn' : 'bad'} role="alert">{err}</p>}
+      {!needNew && <p style={{ margin: '8px 0 0' }}><a href="#" onClick={(e) => { e.preventDefault(); setForgot(true); setErr(''); }}>Quên mật khẩu?</a></p>}
+      <details style={{ marginTop: 16 }}>
+        <summary>Máy chủ</summary>
         <div style={{ marginTop: 8 }}>
-          <input placeholder="Địa chỉ máy chủ lưu trữ" value={base} onChange={(e) => setBase(e.target.value)} />
-          <input placeholder="Dán gói đăng ký (nếu có)" value={pkg} onChange={(e) => setPkg(e.target.value)} />
-          <input placeholder="Mã mời (registry)" value={invite} onChange={(e) => setInvite(e.target.value)} />
-          <div className="row">
-            {ORGS.map((o) => <input key={o} placeholder={`Mã ${o}`} value={codes[o] ?? ''} onChange={(e) => setCodes({ ...codes, [o]: e.target.value })} />)}
-          </div>
-          <input type="password" placeholder="Đặt passphrase (tối thiểu 8 ký tự)" value={pass1} autoComplete="new-password" onChange={(e) => setPass1(e.target.value)} />
-          <button disabled={pass1.length < 8 || (!pkg.trim() && !invite.trim())} onClick={() => void advanced()}>Đăng ký bằng gói</button>
+          <input aria-label="Địa chỉ máy chủ" placeholder="https://địa-chỉ-máy-chủ:8443" value={base} onChange={(e) => setBase(e.target.value)} />
+          <button disabled={finding} onClick={() => void find()}>{finding ? 'Đang tìm…' : 'Tìm máy chủ trong mạng'}</button>
         </div>
       </details>
     </section>

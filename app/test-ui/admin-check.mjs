@@ -100,7 +100,7 @@ try {
   check(true, 'Sai mật khẩu: bị từ chối, báo số lần còn lại');
   await type(a.page, 'Mật khẩu quản trị', PW);
   await click(a.page, 'Mở khoá', 'button');
-  await waitText(a.page, 'Đăng ký máy mới');
+  await waitText(a.page, 'Đăng ký tự do');
   await a.page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));   // "Cấp nhanh nhân sự" nằm trong mục Nâng cao
   await waitText(a.page, 'Cấp nhanh nhân sự');
   check(true, 'Đúng mật khẩu: vào được màn quản trị');
@@ -145,7 +145,7 @@ try {
   check(persisted.includes('Đã khoá'), 'Tắt và mở lại ứng dụng: trạng thái khoá vẫn còn (không xoá được bằng cách khởi động lại)');
   await click(a.page, 'Quản trị bảo mật', '.menubar a');
   await click(a.page, 'Quản trị cấp quyền', '.dropmenu a');
-  await waitText(a.page, 'Đã khoá do nhập sai nhiều lần');
+  await waitText(a.page, 'Đã khoá. Thử lại sau');
   check(true, 'Màn hình hiển thị đếm ngược thời gian khoá');
   await a.close();
 

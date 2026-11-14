@@ -20,7 +20,7 @@ public class WebConfig implements WebMvcConfigurer {
     /** Token la bearer (khong cookie) nen cho phep goi cheo nguon: giao dien va cac nut noi chuyen truc tiep. */
     @Override
     public void addCorsMappings(CorsRegistry r) {
-        r.addMapping("/**").allowedOrigins("*").allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS").allowedHeaders("*");
+        r.addMapping("/**").allowedOrigins("*").allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS").allowedHeaders("*").exposedHeaders("X-Restricted-Count");
     }
 
     /** Loi tra ve dang {"error": "..."} de client TypeScript doc thong nhat. */

@@ -40,8 +40,8 @@ export function UpdateBanner({ storageBase }: { storageBase: string }) {
   };
   return (
     <div className="okbar" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 16px 6px' }}>
-      <span>🔄 Có bản cập nhật mới cho ứng dụng này.</span>
-      <button className="mini2" disabled={busy} onClick={() => void apply()}>{busy ? 'Đang cập nhật…' : 'Cập nhật ngay (tự khởi động lại)'}</button>
+      <span>🔄 Có bản cập nhật mới.</span>
+      <button className="mini2" disabled={busy} onClick={() => void apply()}>{busy ? 'Đang cập nhật…' : 'Cập nhật ngay'}</button>
       {err && <span className="bad">{err}</span>}
     </div>
   );

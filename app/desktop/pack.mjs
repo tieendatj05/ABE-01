@@ -17,7 +17,8 @@ if (edition === 'user') {
   writeFileSync(join(stage, 'desktop', 'server-url.txt'), url + '\n');
   console.log('Bản nhân viên sẽ kết nối tới máy chủ:', url);
 }
-const appName = edition === 'user' ? 'KSK-NhanVien' : 'KSK';   // KSK = máy quản trị (chạy cả máy chủ nhúng); KSK-NhanVien = máy nhân viên khác
+// MEDABE_APP_NAME: đóng gói ra thư mục/tên exe RIÊNG (vd KSK-NhanVien-TaiKhoan) để KHÔNG đè bản đang chạy và có thư mục dữ liệu riêng.
+const appName = process.env.MEDABE_APP_NAME ?? (edition === 'user' ? 'KSK-NhanVien' : 'KSK');   // KSK = máy quản trị (chạy cả máy chủ nhúng); KSK-NhanVien = máy nhân viên khác
 const root = JSON.parse(readFileSync('package.json', 'utf8'));
 writeFileSync(join(stage, 'package.json'), JSON.stringify({ name: 'medabe', productName: appName, version: root.version, description: root.description, main: 'desktop/dist/main.cjs' }, null, 2));
 
@@ -39,4 +40,6 @@ rmSync(stage, { recursive: true, force: true });
 rmSync(resolve('release', 'server-stage'), { recursive: true, force: true });
 console.log('Đã đóng gói:', out.join(', '));
 // Xuất bản app.asar để máy khác (đã kết nối) tự thấy có bản mới và tự tải khi mở lại app (UpdateBanner.tsx).
-execFileSync(process.execPath, ['app/desktop/publish-update.mjs'], { stdio: 'inherit', windowsHide: true });
+// MEDABE_NO_PUBLISH=1: KHÔNG đẩy bản mới lên máy chủ đang chạy (bản dùng tài khoản không tương thích máy chủ cũ: các máy đang nối máy chủ cũ sẽ nhận nhầm bản này).
+if (process.env.MEDABE_NO_PUBLISH !== '1') execFileSync(process.execPath, ['app/desktop/publish-update.mjs'], { stdio: 'inherit', windowsHide: true });
+else console.log('Bỏ qua xuất bản cập nhật (MEDABE_NO_PUBLISH=1).');

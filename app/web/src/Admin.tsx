@@ -39,16 +39,16 @@ export function Admin() {
     await adm('storage', 'POST', '/api/admin/enrollment', { open });
     for (const o of ORGS) await adm(o, 'POST', '/admin/open-enrollment', { enabled: open, attrs: defAttrs });
     setOpenEnr(open);
-    log(open ? 'Đã BẬT đăng ký tự do: máy mới chỉ cần nhập tên. Nhớ TẮT sau khi nhân viên đã đăng ký xong.' : 'Đã TẮT đăng ký tự do.', open ? 'warn' : 'ok');
+    log(open ? 'Đã BẬT đăng ký tự do.' : 'Đã TẮT đăng ký tự do.', open ? 'warn' : 'ok');
   });
   const saveDefaults = () => run('Lưu quyền mặc định', async () => {
     for (const o of ORGS) await adm(o, 'POST', '/admin/open-enrollment', { enabled: !!openEnr, attrs: defAttrs });
-    log('Đã lưu quyền mặc định cho máy tự đăng ký (áp dụng cho máy đăng ký SAU lúc này).', 'ok');
+    log('Đã lưu quyền mặc định.', 'ok');
   });
   const loadDevices = () => run('Danh sách máy đã đăng ký', async () => { setDevices(await adm('storage', 'GET', '/api/admin/devices')); });
   const disableDevice = (gid: string, nm: string) => run('Khoá máy ' + nm, async () => {
     await adm('storage', 'POST', `/api/admin/devices/${gid}/disable`, {});
-    log(`Đã khoá máy của ${nm}: máy này không truy cập được kho dữ liệu nữa.`, 'warn');
+    log(`Đã khoá máy của ${nm}.`, 'warn');
     await loadDevices();
   });
   const [newPw, setNewPw] = useState('');
@@ -69,12 +69,12 @@ export function Admin() {
   const loadHolders = () => run('Danh sách người giữ quyền', async () => { setHolders(await adm(org, 'GET', '/admin/holders')); });
   const revoke = (gid: string, attr: string) => run(`Thu hồi ${attr} tại ${org}`, async () => {
     await adm(org, 'POST', '/admin/revoke', { gid, attr });
-    log(`${org} đã thu hồi. Cần thu hồi ở đủ số nút cấp được khoá, rồi tăng epoch (nút bên dưới).`, 'warn');
+    log(`Đã thu hồi tại ${org}.`, 'warn');
     await loadHolders();
   });
   const bump = () => run('Tăng epoch ' + bumpAttr, async () => {
     const r = await adm('storage', 'POST', '/api/admin/epochs/bump', { base: bumpAttr });
-    log(`Epoch ${bumpAttr} = ${r.counter}. Bản ghi sẽ tự được bọc lại khi người còn quyền mở nó.`, 'ok');
+    log(`Epoch ${bumpAttr} = ${r.counter}.`, 'ok');
   });
   const closeBg = () => run('Đóng phá-vỡ-kính', async () => {
     const r = await adm('storage', 'POST', '/api/admin/break-glass/close', { subject: bgSubject.trim() });
@@ -89,19 +89,18 @@ export function Admin() {
   return (
     <>
       <section>
-        <h2>Đăng ký máy mới (nhân viên tự đăng ký chỉ bằng tên)</h2>
-        <p>Trạng thái: {openEnr === null ? '…' : openEnr ? <b className="warn">ĐANG BẬT</b> : <b className="ok">đang tắt</b>}. Khi BẬT, nhân viên mở ứng dụng, nhập tên là dùng được ngay với bộ quyền mặc định bên dưới. {openEnr && <span className="warn">Lúc này <b>bất kỳ máy nào trong mạng</b> cũng tự đăng ký được - hãy TẮT khi nhân viên đã đăng ký xong.</span>}</p>
+        <h2>Đăng ký tự do</h2>
+        <p>Trạng thái: {openEnr === null ? '…' : openEnr ? <b className="warn">BẬT</b> : <b className="ok">tắt</b>}</p>
         <div className="row">
           <button disabled={openEnr === true} onClick={() => void applyEnrollment(true)}>Bật đăng ký tự do</button>
           <button className="ghost" disabled={openEnr !== true} onClick={() => void applyEnrollment(false)}>Tắt đăng ký tự do</button>
         </div>
-        <h3>Quyền mặc định cho máy tự đăng ký</h3>
+        <h3>Quyền mặc định</h3>
         <div className="checks" style={{ padding: 0 }}>
           {['Role:TiepDon', 'Role:BacSi', 'Role:KTV', 'Role:KetLuan', 'Khoa:Nhi', 'Khoa:Mat', 'Khoa:TMH', 'Khoa:RHM', 'Khoa:XetNghiem'].map((x) => (
             <label key={x} className="radio"><input type="checkbox" checked={defAttrs.includes(x)} onChange={() => toggleAttr(x)} /> {x}</label>
           ))}
         </div>
-        <p className="sub">Chọn tất cả = mọi nhân viên làm được mọi việc nghiệp vụ (không có quyền quản trị). Muốn phân quyền chặt hơn, bỏ bớt quyền ở đây hoặc dùng phần "Nâng cao" để cấp riêng theo vai trò.</p>
         <button className="ghost" onClick={() => void saveDefaults()}>Lưu quyền mặc định</button>
       </section>
 
@@ -114,14 +113,12 @@ export function Admin() {
               <td>{!d.disabled && <a href="#" className="bad" onClick={(e) => { e.preventDefault(); void disableDevice(d.gid, d.name); }}>khoá máy này</a>}</td></tr>)}
           </tbody></table>
         )}
-        <p className="sub">Mất máy hoặc nhân viên nghỉ việc: <b>khoá máy</b> để máy đó không truy cập được kho dữ liệu nữa; sau đó thu hồi thuộc tính và tăng epoch (bên dưới) để dữ liệu mới không mở được bằng khoá cũ.</p>
       </section>
 
       <details style={{ marginBottom: 12 }}>
-        <summary><b>Nâng cao:</b> cấp quyền riêng theo vai trò cho từng người (không bắt buộc)</summary>
+        <summary>Nâng cao: cấp quyền theo vai trò</summary>
       <section>
         <h2>Cấp nhanh nhân sự</h2>
-        <p className="sub">Tạo mã mời ở registry và mã cấp quyền ở từng tổ chức, gom thành một gói đăng ký. Cần ít nhất 2 tổ chức đồng thuận thì khoá mới được tạo.</p>
         <div className="row">
           <input placeholder="Tên (vd BS Nguyễn Văn A)" value={name} onChange={(e) => setName(e.target.value)} />
           <select value={role} onChange={(e) => setRole(e.target.value)}><option>TiepDon</option><option>BacSi</option><option>KTV</option><option>KetLuan</option><option>SoYTe</option></select>
@@ -129,7 +126,7 @@ export function Admin() {
           <label style={{ flex: '0 0 auto' }}><input type="checkbox" checked={useDt} onChange={(e) => setUseDt(e.target.checked)} style={{ width: 'auto' }} /> gồm nút Điện thoại</label>
           <button disabled={!name.trim()} onClick={() => void onboard()}>Tạo gói đăng ký</button>
         </div>
-        {link && <p>Gói đăng ký (dùng một lần) - gửi cho nhân sự, họ dán vào ô "Dán gói đăng ký" trên máy của họ:<br /><code>{link}</code></p>}
+        {link && <p>Gói đăng ký (dùng một lần):<br /><code>{link}</code></p>}
       </section>
       </details>
 
@@ -152,7 +149,7 @@ export function Admin() {
           <button onClick={() => void bump()}>Tăng epoch thuộc tính</button>
         </div>
         <div className="row">
-          <input placeholder="Chỉ mục mù của bệnh nhân (cột subject trong cảnh báo)" value={bgSubject} onChange={(e) => setBgSubject(e.target.value)} />
+          <input placeholder="Chỉ mục bệnh nhân (subject)" value={bgSubject} onChange={(e) => setBgSubject(e.target.value)} />
           <button className="danger" disabled={!bgSubject.trim()} onClick={() => void closeBg()}>Đóng phá-vỡ-kính</button>
         </div>
       </section>
@@ -168,7 +165,6 @@ export function Admin() {
 
       <section>
         <h2>Trạm quản trị này</h2>
-        <p className="sub">Token quản trị nằm trong kho mã hoá (mật khẩu + DPAPI + buộc phần cứng); tự khoá sau 5 phút không dùng.</p>
         <div className="row">
           <button onClick={() => void bridge?.admin?.lock()}>Khoá ngay</button>
           <input type="password" placeholder="Mật khẩu hiện tại" value={oldPw} onChange={(e) => setOldPw(e.target.value)} autoComplete="current-password" />
@@ -176,7 +172,7 @@ export function Admin() {
           <button disabled={!oldPw || !newPw} onClick={() => void run('Đổi mật khẩu quản trị', async () => { await bridge!.admin!.changePassword(oldPw, newPw); setOldPw(''); setNewPw(''); log('Đã đổi mật khẩu quản trị.', 'ok'); })}>Đổi mật khẩu</button>
         </div>
         <div className="row">
-          <button className="danger" disabled={!oldPw} onClick={() => { if (confirm('Gỡ kích hoạt trạm quản trị trên máy này? Cần kích hoạt lại bằng gói mới.')) void run('Gỡ kích hoạt', async () => { await bridge!.admin!.reset(oldPw); setOldPw(''); log('Đã gỡ kích hoạt trạm quản trị.', 'warn'); }); }}>Gỡ kích hoạt trạm quản trị (nhập mật khẩu hiện tại ở trên)</button>
+          <button className="danger" disabled={!oldPw} onClick={() => { if (confirm('Gỡ kích hoạt trạm quản trị?')) void run('Gỡ kích hoạt', async () => { await bridge!.admin!.reset(oldPw); setOldPw(''); log('Đã gỡ kích hoạt trạm quản trị.', 'warn'); }); }}>Gỡ kích hoạt trạm quản trị</button>
         </div>
       </section>
     </>

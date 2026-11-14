@@ -308,50 +308,50 @@ describe.skipIf(!JAR)('hệ thống y tế ABE đầu-cuối (Spring Boot + 3 n�
     expect(await cef.text()).toContain('CEF:0|MedABE|Storage|1.0|DEVICE_LOCKED');
   }, 240_000);
 
-  it('PHỤ HUYNH tra cứu bằng CCCD + ngày sinh (không tài khoản, không mã); SỞ Y TẾ đọc bằng ABE; người lạ thì không', async () => {
+  it('PHỤ HUYNH tra cứu bằng HỌ TÊN + CCCD (không tài khoản, không mã); SỞ Y TẾ đọc bằng ABE; người lạ thì không', async () => {
     const nv = await person('Nhan vien KSK', { BenhVien: ['Role:TiepDon', 'Role:BacSi', 'Khoa:Nhi'], SoYTe: ['Role:TiepDon', 'Role:BacSi', 'Khoa:Nhi'] });
-    await nv.c.saveRecord({ patientCode: 'HS-0901', type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-A', data: { hoTen: 'Nguyen Van An', cccd: 'HS-0901', ngaySinh: '2013-04-05', lop: '6A' } });
-    await nv.c.saveRecord({ patientCode: 'HS-0901', type: 'lamsang', khoa: 'Nhi', data: { ketQua: 'Binh thuong' } });   // ngày sinh lấy từ mục hành chính
-    await nv.c.saveRecord({ patientCode: 'HS-0902', type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-A', data: { hoTen: 'Tran Thi Binh', cccd: 'HS-0902', ngaySinh: '2013-11-20', lop: '6B' } });
+    await nv.c.saveRecord({ patientCode: 'HS-0901', type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-A', data: { hoTen: 'Nguyễn Văn An', cccd: 'HS-0901', ngaySinh: '2013-04-05', lop: '6A' } });
+    await nv.c.saveRecord({ patientCode: 'HS-0901', type: 'lamsang', khoa: 'Nhi', data: { ketQua: 'Binh thuong' } });   // họ tên lấy từ mục hành chính
+    await nv.c.saveRecord({ patientCode: 'HS-0902', type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-A', data: { hoTen: 'Trần Thị Bình', cccd: 'HS-0902', ngaySinh: '2013-11-20', lop: '6B' } });
 
-    // Phụ huynh: chỉ cần CCCD + ngày sinh của con, gõ kiểu nào cũng được; không có tài khoản/khoá/mã nào.
-    const items = await fetchForParent(S, ' hs-0901 ', '05/04/2013');
+    // Phụ huynh: chỉ cần họ tên + CCCD của con, gõ hoa/thường, có dấu hay không dấu, thừa khoảng trắng đều được; không có tài khoản/khoá/mã nào.
+    const items = await fetchForParent(S, ' hs-0901 ', '  nguyen   VAN an ');
     expect(items.map((i) => i.type).sort()).toEqual(['hanhchinh', 'lamsang']);
-    expect(JSON.stringify(items)).toContain('Nguyen Van An');
-    expect(JSON.stringify(items)).not.toContain('Tran Thi Binh');            // không thấy con người khác
-    expect(await fetchForParent(S, 'HS-0901', '2013-04-05')).toHaveLength(2);
-    expect(await fetchForParent(S, 'HS-0902', '2013-11-20')).toHaveLength(1);
-    // CCCD đúng nhưng sai ngày sinh / ngày sinh của em khác -> không có gì.
-    expect(await fetchForParent(S, 'HS-0901', '2013-04-06')).toEqual([]);
-    expect(await fetchForParent(S, 'HS-0901', '2013-11-20')).toEqual([]);
-    await expect(fetchForParent(S, 'HS-0901', '')).rejects.toThrow(/ngày sinh/);
-    await expect(fetchForParent(S, 'HS-0901', '31/02/2013')).rejects.toThrow(/ngày sinh/);   // ngày không có thật
+    expect(JSON.stringify(items)).toContain('Nguyễn Văn An');
+    expect(JSON.stringify(items)).not.toContain('Trần Thị Bình');            // không thấy con người khác
+    expect(await fetchForParent(S, 'HS-0901', 'Nguyễn Văn An')).toHaveLength(2);
+    expect(await fetchForParent(S, 'HS-0902', 'TRAN THI BINH')).toHaveLength(1);
+    // CCCD đúng nhưng sai họ tên / họ tên của em khác -> không có gì.
+    expect(await fetchForParent(S, 'HS-0901', 'Nguyễn Văn Bảo')).toEqual([]);
+    expect(await fetchForParent(S, 'HS-0901', 'Trần Thị Bình')).toEqual([]);
+    await expect(fetchForParent(S, 'HS-0901', '')).rejects.toThrow(/họ và tên/);
+    await expect(fetchForParent(S, 'HS', 'Nguyễn Văn An')).rejects.toThrow(/CCCD/);
     // Cập nhật gần thời gian thực: dấu vân tay đổi ngay khi nhân viên lưu thêm mục khám mới; phụ huynh thấy mục mới.
-    const v1 = await parentVersion(S, 'HS-0902', '2013-11-20');
+    const v1 = await parentVersion(S, 'HS-0902', 'Trần Thị Bình');
     await nv.c.saveRecord({ patientCode: 'HS-0902', type: 'thecuc', khoa: 'KSK', data: { chieuCao: '150', canNang: '40' } });
-    const v2 = await parentVersion(S, 'HS-0902', '2013-11-20');
+    const v2 = await parentVersion(S, 'HS-0902', 'Trần Thị Bình');
     expect(v2).not.toBe(v1);
-    expect((await fetchForParent(S, 'HS-0902', '2013-11-20')).map((i) => i.type).sort()).toEqual(['hanhchinh', 'thecuc']);
-    expect(await fetchForParent(S, '000000000000', '2013-11-20')).toEqual([]);              // CCCD không có trong hệ thống: không có gì
+    expect((await fetchForParent(S, 'HS-0902', 'Trần Thị Bình')).map((i) => i.type).sort()).toEqual(['hanhchinh', 'thecuc']);
+    expect(await fetchForParent(S, '000000000000', 'Trần Thị Bình')).toEqual([]);              // CCCD không có trong hệ thống: không có gì
 
-    // Máy nhân viên KHÁC (phiên mới, chưa nhớ ngày sinh) lưu mục khám: tự mở mục hành chính để lấy ngày sinh.
+    // Máy nhân viên KHÁC (phiên mới, chưa nhớ họ tên) lưu mục khám: tự mở mục hành chính để lấy họ tên.
     const nv2 = await person('Nhan vien KSK 2', { BenhVien: ['Role:TiepDon', 'Role:BacSi', 'Khoa:Nhi'], SoYTe: ['Role:TiepDon', 'Role:BacSi', 'Khoa:Nhi'] });
     await nv2.c.saveRecord({ patientCode: 'HS-0901', type: 'thecuc', khoa: 'KSK', data: { chieuCao: '148', canNang: '39' } });
-    expect((await fetchForParent(S, 'HS-0901', '2013-04-05')).map((i) => i.type).sort()).toEqual(['hanhchinh', 'lamsang', 'thecuc']);
+    expect((await fetchForParent(S, 'HS-0901', 'Nguyễn Văn An')).map((i) => i.type).sort()).toEqual(['hanhchinh', 'lamsang', 'thecuc']);
 
-    // Hồ sơ cũ thiếu ngày sinh -> chưa có đường tra cứu; bổ sung ngày sinh rồi "Cập nhật tra cứu phụ huynh" thì mục cũ cũng hiện ra.
-    await nv.c.saveRecord({ patientCode: 'HS-0903', type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-B', data: { hoTen: 'Le Van Cu', cccd: 'HS-0903', lop: '6C' } });
+    // Hồ sơ cũ thiếu họ tên -> chưa có đường tra cứu; bổ sung họ tên rồi "Cập nhật tra cứu phụ huynh" thì mục cũ cũng hiện ra.
+    await nv.c.saveRecord({ patientCode: 'HS-0903', type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-B', data: { cccd: 'HS-0903', lop: '6C' } });
     await nv.c.saveRecord({ patientCode: 'HS-0903', type: 'thecuc', khoa: 'KSK', group: 'TRUONG-B', data: { chieuCao: '140', canNang: '35' } });
-    expect(await fetchForParent(S, 'HS-0903', '2013-01-02')).toEqual([]);
-    await nv.c.saveRecord({ patientCode: 'HS-0903', type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-B', data: { hoTen: 'Le Van Cu', cccd: 'HS-0903', ngaySinh: '2013-01-02', lop: '6C' } });
-    expect((await fetchForParent(S, 'HS-0903', '2013-01-02')).map((i) => i.type)).toEqual(['hanhchinh']);
+    expect(await fetchForParent(S, 'HS-0903', 'Lê Văn Cự')).toEqual([]);
+    await nv.c.saveRecord({ patientCode: 'HS-0903', type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-B', data: { hoTen: 'Lê Văn Cự', cccd: 'HS-0903', ngaySinh: '2013-01-02', lop: '6C' } });
+    expect((await fetchForParent(S, 'HS-0903', 'Lê Văn Cự')).map((i) => i.type)).toEqual(['hanhchinh']);
     const ref = await nv2.c.refreshParentAccess('TRUONG-B');
     expect(ref.updated).toBeGreaterThanOrEqual(1);
-    expect((await fetchForParent(S, 'HS-0903', '2013-01-02')).map((i) => i.type).sort()).toEqual(['hanhchinh', 'thecuc']);
+    expect((await fetchForParent(S, 'HS-0903', 'Lê Văn Cự')).map((i) => i.type).sort()).toEqual(['hanhchinh', 'thecuc']);
     expect((await nv2.c.refreshParentAccess('TRUONG-B')).updated).toBe(0);                   // chạy lại: không còn gì phải làm
     // Máy chủ không thấy nội dung.
     const raw = JSON.stringify((await api(S, '/api/records?patientIdx=' + nv.c.patientIdx('HS-0901'), { authorization: `Bearer ${nv.c.s.token}` })).json);
-    expect(raw).not.toContain('Nguyen Van An');
+    expect(raw).not.toContain('Nguyễn Văn An');
 
     // Sở Y tế: thuộc tính Org:SoYTe (do admin cấp) mở được mọi mục bằng ABE, không phụ thuộc vai trò/khoa.
     const so = await person('Can bo So Y te', { BenhVien: ['Org:SoYTe'], SoYTe: ['Org:SoYTe'] });
@@ -368,12 +368,12 @@ describe.skipIf(!JAR)('hệ thống y tế ABE đầu-cuối (Spring Boot + 3 n�
   it('LIÊN THÔNG BỘ Y TẾ: gửi bản mã hoá lên cổng, nhận biên nhận có chữ ký; Bộ Y tế đọc bằng ABE; phụ huynh tra qua cổng; sửa sau khi gửi thì chưa liên thông', async () => {
     const nv = await person('Co so kham LT', { BenhVien: ['Role:TiepDon', 'Role:BacSi', 'Khoa:Nhi'], SoYTe: ['Role:TiepDon', 'Role:BacSi', 'Khoa:Nhi'] });
     const cccd = 'LT-001';
-    await nv.c.saveRecord({ patientCode: cccd, type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-LT', data: { hoTen: 'Tran Van Lien Thong', cccd, ngaySinh: '2012-09-01', lop: '7A' } });
+    await nv.c.saveRecord({ patientCode: cccd, type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-LT', data: { hoTen: 'Trần Văn Liên Thông', cccd, ngaySinh: '2012-09-01', lop: '7A' } });
     await nv.c.saveRecord({ patientCode: cccd, type: 'thecuc', khoa: 'KSK', group: 'TRUONG-LT', data: { chieuCao: '160', canNang: '48' } });
     await nv.c.saveRecord({ patientCode: cccd, type: 'lamsang', khoa: 'Nhi', group: 'TRUONG-LT', data: { ketQua: 'Binh thuong' } });
     const rows = await nv.c.listRecords(cccd);
     expect(rows).toHaveLength(3);
-    const ngaySinh = '01/09/2012';
+    const ten = 'Trần Văn Liên Thông';
 
     // Cấu hình cổng nằm trong cấu hình CÓ CHỮ KÝ registry của máy chủ; khoá công khai của cổng được ghim ở máy khách.
     expect((await nv.c.config()).byt).toMatchObject({ url: bytUrl });
@@ -383,8 +383,8 @@ describe.skipIf(!JAR)('hệ thống y tế ABE đầu-cuối (Spring Boot + 3 n�
 
     // Trước khi gửi: chưa có biên nhận, phụ huynh tra qua Bộ Y tế chưa thấy gì (nhưng kho chính vẫn có).
     expect((await nv.c.bytStatus(rows.map((r) => r.id))).size).toBe(0);
-    expect(await fetchForParent(bytUrl, cccd, ngaySinh)).toEqual([]);
-    expect(await fetchForParent(S, cccd, ngaySinh)).toHaveLength(3);
+    expect(await fetchForParent(bytUrl, cccd, ten)).toEqual([]);
+    expect(await fetchForParent(S, cccd, ten)).toHaveLength(3);
 
     const sent = await nv.c.bytSubmit(rows, ma);
     expect(sent.rejected).toEqual([]);
@@ -402,14 +402,14 @@ describe.skipIf(!JAR)('hệ thống y tế ABE đầu-cuối (Spring Boot + 3 n�
     expect(fromGw.every((r) => r.receipt)).toBe(true);
     const opened = await Promise.all(fromGw.map((r) => so.c.openRecord(r)));
     expect(opened.every((o) => o?.signatureValid)).toBe(true);
-    expect(JSON.stringify(opened)).toContain('Tran Van Lien Thong');
+    expect(JSON.stringify(opened)).toContain('Trần Văn Liên Thông');
     // Kẻ có thiết bị hợp lệ nhưng sai quyền: cổng vẫn trả ciphertext, nhưng không mở được lâm sàng Nhi.
     const mat = await person('Bs Mat LT', { BenhVien: ['Role:BacSi', 'Khoa:Mat'], SoYTe: ['Role:BacSi', 'Khoa:Mat'] });
     const ls = (await mat.c.bytRecords({ patientCode: cccd })).find((r) => r.type === 'lamsang')!;
     expect(await mat.c.openRecord(ls)).toBeNull();
     // Dữ liệu thô của cổng không chứa plaintext.
     const raw = JSON.stringify(fromGw);
-    expect(raw).not.toContain('Tran Van Lien Thong');
+    expect(raw).not.toContain('Trần Văn Liên Thông');
     expect(raw).not.toContain('chieuCao');                                 // tên trường dữ liệu cũng không lộ
 
     // Danh sách theo đơn vị cũng lấy được từ cổng.
@@ -418,8 +418,8 @@ describe.skipIf(!JAR)('hệ thống y tế ABE đầu-cuối (Spring Boot + 3 n�
     expect((await so.c.bytStats()).facilities.find((f) => f.ma === ma)!.records).toBeGreaterThanOrEqual(3);
 
     // Phụ huynh tra cứu QUA BỘ Y TẾ: cùng đường giải mã, chỉ thấy phần đã liên thông.
-    expect((await fetchForParent(bytUrl, cccd, ngaySinh)).map((i) => i.type).sort()).toEqual(['hanhchinh', 'lamsang', 'thecuc']);
-    expect(await fetchForParent(bytUrl, cccd, '02/09/2012')).toEqual([]);
+    expect((await fetchForParent(bytUrl, cccd, ten)).map((i) => i.type).sort()).toEqual(['hanhchinh', 'lamsang', 'thecuc']);
+    expect(await fetchForParent(bytUrl, cccd, 'Trần Văn Lien')).toEqual([]);
 
     // Sửa sau khi đã gửi: bản ghi mới chưa có biên nhận => "chưa liên thông" cho đến khi gửi lại.
     const newId = await nv.c.saveRecord({ patientCode: cccd, type: 'thecuc', khoa: 'KSK', group: 'TRUONG-LT', data: { chieuCao: '161', canNang: '49' } });

@@ -60,6 +60,18 @@ public class RegistryService {
             throw new IllegalStateException(e);
         }
     }
+    /** Ky mot thong diep tuy y (da co tien to mien) bang khoa registry Ed25519: dung cho tai lieu policy va chung chi khoa ky nguoi dung. */
+    public String signMessage(String message) {
+        try {
+            Signature s = Signature.getInstance("Ed25519");
+            s.initSign(priv);
+            s.update(message.getBytes(StandardCharsets.UTF_8));
+            return HEX.formatHex(s.sign());
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     /** Thong diep ky PHAI khop voi gidMessage() phia TypeScript. */
     public String certify(String gid, String devicePubHex) {
         try {

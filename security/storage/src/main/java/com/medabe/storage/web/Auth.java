@@ -38,6 +38,12 @@ public class Auth {
     }
 
     public DeviceEntity device(HttpServletRequest req) {
+        // Luong tai khoan: ResearchGateFilter da xac thuc PHIEN (nguoi dung + thiet bi) va gan chu the vao yeu cau; khong con tra token thiet bi cu.
+        if (req.getAttribute(com.medabe.storage.research.ResearchGateFilter.ATTR) instanceof com.medabe.storage.research.IdentityService.Principal p && p.device() != null) {
+            DeviceEntity d = new DeviceEntity();
+            d.gid = p.user().gid; d.name = p.user().displayName; d.deviceId = p.device().deviceId; d.devicePub = p.device().signPub; d.disabled = false;
+            return d;
+        }
         String h = req.getHeader("Authorization");
         String token = h != null && h.startsWith("Bearer ") ? h.substring(7) : "";
         return devices.findByTokenHash(sha256Hex(token)).filter(d -> !d.disabled)

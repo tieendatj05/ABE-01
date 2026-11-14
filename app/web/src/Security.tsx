@@ -13,22 +13,22 @@ export function DeviceKeys() {
   const [org, setOrg] = useState('BenhVien');
   const [code, setCode] = useState('');
   useEffect(() => { void hardwareInfo()?.then(setHw); }, []);
-  if (!c) return <Page title="Thiết bị & khoá"><p className="warnbar">Thiết bị đang khoá. Mở khoá ở màn hình "Khám sức khỏe định kỳ".</p></Page>;
+  if (!c) return <Page title="Thiết bị & khoá"><p className="warnbar">Thiết bị đang khoá.</p></Page>;
   const keyCount = Object.keys(c.s.keys).length;
   return (
     <Page title="Thiết bị & khoá">
       <table className="kv"><tbody>
         <tr><td>Người dùng</td><td>{c.s.name}</td></tr>
         <tr><td>GID (định danh toàn cục)</td><td><code>{c.s.gid}</code></td></tr>
-        <tr><td>Thiết bị</td><td><code>{c.s.deviceId}</code> {isDesktop ? '· khoá lưu bằng kho khoá Windows (DPAPI), buộc vào phần cứng' : '· trình duyệt (chỉ phát triển)'}</td></tr>
-        {hw && <tr><td>Phần cứng</td><td>{hw.host} · băm <code>{hw.hash.slice(0, 16)}</code> · {hw.macs.length} card mạng (không dùng để so khớp)</td></tr>}
+        <tr><td>Thiết bị</td><td><code>{c.s.deviceId}</code> {isDesktop ? '· desktop' : '· trình duyệt'}</td></tr>
+        {hw && <tr><td>Phần cứng</td><td>{hw.host} · băm <code>{hw.hash.slice(0, 16)}</code></td></tr>}
         <tr><td>Thuộc tính</td><td>{c.s.attrs.map((a) => <span key={a} className="tag">{a.replace('MED:', '')}</span>)}</td></tr>
         <tr><td>Khoá đang giữ trong bộ nhớ</td><td>{keyCount} khoá (theo phiên bản epoch)</td></tr>
-        <tr><td>Nút cấp khoá</td><td>{c.s.nodes.map((n) => <span key={n.org} className="tag">{n.org}{n.requiresApproval ? ' · cần duyệt điện thoại' : ''}</span>)} cần ≥ 2 nút đồng thuận</td></tr>
+        <tr><td>Nút cấp khoá</td><td>{c.s.nodes.map((n) => <span key={n.org} className="tag">{n.org}{n.requiresApproval ? ' · cần duyệt điện thoại' : ''}</span>)}</td></tr>
         <tr><td>Phá-vỡ-kính đang hiệu lực</td><td>{Object.entries(c.s.bg).filter(([, t]) => t > Date.now()).map(([i, t]) => <span key={i} className="tag warn">{i.slice(0, 8)}… đến {new Date(t).toLocaleString('vi-VN')}</span>)}{!Object.values(c.s.bg).some((t) => t > Date.now()) && 'Không có'}</td></tr>
       </tbody></table>
       <div className="row" style={{ marginTop: 10 }}>
-        <button onClick={() => { c.resetKeys(); session.schedulePersist(); log('Đã xoá khoá trong bộ nhớ; lần mở hồ sơ tới sẽ xin khoá mới theo epoch hiện hành.', 'ok'); }}>Làm mới khoá</button>
+        <button onClick={() => { c.resetKeys(); session.schedulePersist(); log('Đã làm mới khoá.', 'ok'); }}>Làm mới khoá</button>
         <select value={org} onChange={(e) => setOrg(e.target.value)}>{['BenhVien', 'SoYTe', 'DienThoai'].map((o) => <option key={o}>{o}</option>)}</select>
         <input placeholder="Mã cấp quyền của tổ chức" value={code} onChange={(e) => setCode(e.target.value)} />
         <button disabled={!code.trim()} onClick={() => void run('Nhận thuộc tính', async () => { await session.addNodeCode(org, code.trim()); setCode(''); log(`Đã nhận thuộc tính từ ${org}`, 'ok'); })}>Thêm thuộc tính</button>
@@ -46,14 +46,13 @@ export function BreakGlass() {
   if (!c) return <Page title="Phá vỡ kính"><p className="warnbar">Thiết bị đang khoá.</p></Page>;
   const isDoctor = c.s.attrs.includes('MED:Role:BacSi');
   return (
-    <Page title="Phá vỡ kính (cấp cứu)">
-      <p>Chỉ dùng khi bệnh nhân nguy kịch và không liên lạc được bác sĩ chủ quản. <b>Cả 3 tổ chức đều nhận cảnh báo ngay</b>, hành động được ghi nhật ký và có hạn 24 giờ. Quản trị có thể đóng sớm.</p>
-      {!isDoctor && <p className="warnbar">Chỉ tài khoản có vai trò Bác sĩ mới được phá vỡ kính.</p>}
-      <div className="row"><input placeholder="Số định danh của bệnh nhân" value={cccd} onChange={(e) => setCccd(e.target.value)} /><input placeholder="Lý do (tối thiểu 10 ký tự)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ flex: 2 }} />
+    <Page title="Phá vỡ kính">
+      {!isDoctor && <p className="warnbar">Chỉ Bác sĩ được phá vỡ kính.</p>}
+      <div className="row"><input placeholder="Số CCCD bệnh nhân" value={cccd} onChange={(e) => setCccd(e.target.value)} /><input placeholder="Lý do (≥ 10 ký tự)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ flex: 2 }} />
         <button className="danger" disabled={!isDoctor || !cccd.trim() || reason.trim().length < 10} onClick={() => void run('Phá vỡ kính', async () => {
           const until = await c.breakGlass(cccd, reason);
           session.schedulePersist();
-          log(`Đã kích hoạt đến ${new Date(until).toLocaleString('vi-VN')}. Cảnh báo CRITICAL đã gửi tới quản trị và hệ thống giám sát.`, 'warn');
+          log(`Đã kích hoạt đến ${new Date(until).toLocaleString('vi-VN')}.`, 'warn');
           setReason('');
         })}>Kích hoạt</button></div>
     </Page>

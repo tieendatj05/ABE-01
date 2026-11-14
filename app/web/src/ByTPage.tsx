@@ -5,6 +5,7 @@ import { UnitSelect } from './UnitSelect.js';
 import { when } from './byt.js';
 import { tuoi, type HanhChinh } from './model.js';
 import { session } from './session.js';
+import { sachTenAll } from './ten.js';
 import { log, run } from './ui.js';
 
 interface Row { rec: BytRow; data: HanhChinh | null }
@@ -31,7 +32,7 @@ export function ByTPage({ unit, setUnit }: { unit: string; setUnit: (u: string) 
     try {
       setStats(await c.bytStats());
       const recs = await c.bytRecords({ group: unit, type: 'hanhchinh' });
-      const res = await c.openMany(recs, (d, t) => setProg(`${d}/${t}`));
+      const res = sachTenAll(await c.openMany(recs, (d, t) => setProg(`${d}/${t}`)));
       setRows(recs.map((rec, i) => ({ rec, data: (res[i]?.data as HanhChinh) ?? null })));
       log(`Cổng Bộ Y tế: ${recs.length} hồ sơ của đơn vị, đọc được ${res.filter(Boolean).length}.`, 'ok');
     } catch (e) { setErr((e as Error).message); throw e; }
@@ -42,21 +43,18 @@ export function ByTPage({ unit, setUnit }: { unit: string; setUnit: (u: string) 
     setSel(r);
     if (!r.data) { setSections([]); return; }
     const recs = await c.bytRecords({ patientCode: r.data.cccd });
-    const res = await c.openMany(recs);
+    const res = sachTenAll(await c.openMany(recs));
     setSections(recs.map((rec, i) => ({ type: rec.type, khoa: rec.khoa, data: res[i]?.data ?? null, ok: !!res[i]?.signatureValid, at: rec.createdAt })));
   });
 
   return (
     <div className="listpage">
-      <h2 className="ltitle">CỔNG BỘ Y TẾ (MÔ PHỎNG) · cán bộ Sở Y tế</h2>
-      <p className="sub" style={{ margin: '0 8px' }}>
-        Cổng chỉ nhận và lưu bản <b>đã mã hoá</b> do các cơ sở khám gửi lên (liên thông). Cán bộ có thuộc tính <code>Org:SoYTe</code> giải mã ngay trên máy này; máy chủ và cổng không có khoá nào.
-      </p>
+      <h2 className="ltitle">CỔNG BỘ Y TẾ (MÔ PHỎNG)</h2>
       <div className="lfilters">
         <div className="improw"><label>Công ty:</label><UnitSelect value={unit} onChange={setUnit} />
           <button className="mini2" disabled={!!prog} onClick={() => void load()}>⟳ Tải từ cổng {prog && `(${prog})`}</button></div>
       </div>
-      {err && <div className="warnbar" role="alert">Không tải được từ cổng: {err}</div>}
+      {err && <div className="warnbar" role="alert">Lỗi cổng: {err}</div>}
       {stats && (
         <table className="grid small" style={{ margin: '0 8px 8px', width: 'auto' }}>
           <thead><tr><th>Mã cơ sở</th><th>Tên cơ sở</th><th>Số bệnh nhân</th><th>Số bản ghi mã hoá</th><th>Theo loại mục</th></tr></thead>

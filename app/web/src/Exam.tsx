@@ -5,7 +5,10 @@ import {
   blank, canWrite, validateHanhChinh, type CanLamSang, type HanhChinh, type KetLuan, type LanKham, type TheLuc, type TienSu,
 } from './model.js';
 import { PanelCanLamSang, PanelHanhChinh, PanelKetLuan, PanelLamSang, PanelLanKham, PanelTheLuc, PanelTienSu, type SignMeta } from './Sections.js';
+import { focusPatient } from './focus.js';
+import { docMau, luuMau, xoaMau, type Mau } from './mau.js';
 import { session } from './session.js';
+import { sachTenAll } from './ten.js';
 import { log, run } from './ui.js';
 import { backfillLienThong, fetchReceipts, receiptText, submitPatient, type ReceiptMap } from './byt.js';
 
@@ -60,6 +63,7 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
   const [cls, setCls] = useState<CanLamSang>(blank.canlamsang());
   const [kl, setKl] = useState<KetLuan>(blank.ketluan());
 
+  const [customMau, setCustomMau] = useState<Record<string, Mau>>(() => docMau());       // mẫu mặc định do người dùng tự lưu (khám lâm sàng)
   const mark = (k: string) => setDirty((s) => new Set(s).add(k));
   const off = (type: RecordType, khoa?: string) => mode === 'view' || !canWrite(type, attrs, khoa);
 
@@ -98,14 +102,16 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
       const recs = [...latest.values()];
       const todo = recs.filter((r) => !decrypted.current.has(r.id));
       if (!silent && todo.length > 20) setProg({ d: 0, t: todo.length });
-      const res = await c.openMany(todo, silent ? undefined : (d, t) => setProg({ d, t }));
+      const res = sachTenAll(await c.openMany(todo, silent ? undefined : (d, t) => setProg({ d, t })));
       todo.forEach((r, i) => decrypted.current.set(r.id, (res[i]?.data as HanhChinh) ?? null));
-      setRows(recs.map((rec) => ({ rec, data: decrypted.current.get(rec.id) ?? null })));
+      const built: Row[] = recs.map((rec) => ({ rec, data: decrypted.current.get(rec.id) ?? null }));
+      setRows(built);
       const st = await fetchReceipts(c, recs.map((r) => r.id));
       setRcpt(st.map); setBytErr(st.error);
       setProg(null);
       setLiveAt(new Date());
       if (!silent) log(`Đã tải ${recs.length} hồ sơ của đơn vị và giải mã trên máy này.`, 'ok');
+      return built;
     } catch (e) { setLoadError((e as Error).message); throw e; }
     finally { loading.current = false; setIsLoading(false); setProg(null); }
   }, [c, unit]);
@@ -119,11 +125,27 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
     return () => clearInterval(t);
   }, [c, unit, load]);
 
-  useEffect(() => { reset(); setMode('new'); setSec('hanhchinh'); decrypted.current.clear(); lastVersion.current = ''; void run('Tải danh sách đơn vị', () => load()); }, [unit]);
+  // Vào màn hình (hoặc màn hình bị dựng lại: đổi trang, mất kết nối thoáng qua): nếu trước đó đang làm với một bệnh nhân thì mở lại đúng người đó,
+  // không để phiếu trống trơn như chưa chọn ai.
+  useEffect(() => {
+    reset(); setMode('new'); setSec('hanhchinh'); decrypted.current.clear(); lastVersion.current = '';
+    void run('Tải danh sách đơn vị', async () => {
+      const built = await load();
+      const want = focusPatient.get(c.s.deviceId);
+      const row = want ? built?.find((r) => r.data?.cccd === want) : undefined;
+      if (row) await select(row);
+    });
+  }, [unit]);
+
+  /** Lý do một dòng trong danh sách không mở được (thay cho phiếu trắng khó hiểu). */
+  const lockedWhy = attrs.includes('MED:Role:NhapLieu')
+    ? 'Hồ sơ này do tài khoản khác nhập. Tài khoản Nhập liệu chỉ đọc lại được những hồ sơ do chính mình nhập (nhập liệu 02 không đọc được hồ sơ của nhập liệu 01). Muốn xem, hãy đăng nhập bằng tài khoản Tiếp đón hoặc Bác sĩ; hoặc import/nhập lại bằng tài khoản này.'
+    : 'Tài khoản của bạn không giải mã được hồ sơ này (thuộc phạm vi khoa/quyền khác, hoặc dữ liệu lỗi).';
 
   const select = (row: Row) => run('Mở phiếu khám (giải mã từng mục)', async () => {
+    focusPatient.set(c.s.deviceId, row.data?.cccd);
     reset(); setSel(row); setMode('view'); setSec('hanhchinh');
-    if (!row.data) { setInfo('Không giải mã được mục hành chính của hồ sơ này (không đủ quyền hoặc dữ liệu lỗi).'); return; }
+    if (!row.data) { setInfo(lockedWhy); return; }
     setHc(row.data);
     const recs = await c.listRecords(row.data.cccd);
     const latest = new Map<string, RecordRow>();
@@ -140,6 +162,11 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
       else if (r.type === 'canlamsang') setCls(d); else if (r.type === 'ketluan') setKl(d);
       if (!res.signatureValid) log(`CẢNH BÁO: chữ ký số của mục ${r.type} không hợp lệ`, 'bad');
     }
+    // AN TOÀN CHẨN ĐOÁN: mục không có bản ghi nào trong phạm vi được xem VÀ tài khoản không có quyền ghi mục đó => KHÔNG hiện biểu mẫu trống (dễ hiểu nhầm là "bình thường"),
+    // mà báo rõ "không thuộc phạm vi xem / chưa có dữ liệu".
+    const have = new Set([...latest.values()].map((r) => (r.type === 'lamsang' ? `ls:${r.khoa}` : r.type)));
+    for (const k of LAM_SANG) if (!have.has(`ls:${k.khoa}`) && !canWrite('lamsang', attrs, k.khoa)) nd[`ls:${k.khoa}`] = true;
+    for (const t of ['lankham', 'tiensu', 'thecuc', 'canlamsang', 'ketluan'] as RecordType[]) if (!have.has(t) && !canWrite(t, attrs, 'KSK')) nd[t] = true;
     setDenied(nd);
     session.schedulePersist();
   });
@@ -150,6 +177,7 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
       if (!canWrite('hanhchinh', attrs)) throw new Error('Tài khoản của bạn không có quyền tạo/sửa mục Hành chính (cần vai trò Tiếp đón).');
       const errs = validateHanhChinh(hc);
       if (errs.length) { alert('Chưa lưu được:\n- ' + errs.join('\n- ')); return; }
+      if (mode === 'new' && dupOf && !confirm(`Số định danh ${hc.cccd} đã có trong đơn vị (hồ sơ "${dupOf.data!.hoTen}").\nLưu sẽ ghi thêm một phiên bản mới cho chính người đó. Vẫn lưu?`)) return;
       todo.push(['hanhchinh', 'KSK', hc, unit]);
     }
     if (dirty.has('lankham')) todo.push(['lankham', 'KSK', lk]);
@@ -163,19 +191,18 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
     const t0 = performance.now();
     for (const [type, khoa, data, group] of todo) {
       if (!canWrite(type, attrs, khoa)) throw new Error(`Bạn không có quyền ghi mục "${type}${type === 'lamsang' ? ' - ' + khoa : ''}".`);
-      await c.saveRecord({ patientCode: hc.cccd, type, khoa, data, group: unit, dob: hc.ngaySinh });
+      await c.saveRecord({ patientCode: hc.cccd, type, khoa, data, group: unit, name: hc.hoTen });
     }
     log(`Đã lưu ${todo.length} mục (mã hoá ${Math.round(performance.now() - t0)} ms). Mỗi mục có chính sách truy cập riêng, tự sinh.`, 'ok');
     session.schedulePersist();
     const cccd = hc.cccd;
-    // Có mục khám THẬT SỰ (không chỉ hành chính, ví dụ vừa lưu Khám thể lực) -> tự động liên thông Bộ Y tế NGAY, không cần qua
-    // Quản lý hồ sơ bấm nút riêng. Gửi lại toàn bộ hồ sơ hiện có của người này (không chỉ mục vừa sửa) để cổng có bản đầy đủ.
-    if (todo.some(([t]) => t !== 'hanhchinh')) {
-      try {
-        const out = await submitPatient(c, cccd);
-        log(`Đã tự động liên thông Bộ Y tế (cơ sở ${out.ma})${out.rejected ? `, cổng từ chối ${out.rejected} mục` : ''}.`, out.rejected ? 'warn' : 'ok');
-      } catch (e) { log(`Đã lưu, nhưng chưa liên thông được: ${(e as Error).message}`, 'warn'); }
-    }
+    // Lưu bất kỳ mục nào (kể cả chỉ sửa thông tin hành chính) -> tự động liên thông Bộ Y tế NGAY, không cần qua Quản lý hồ sơ bấm nút riêng.
+    // Bắt buộc gửi cả khi chỉ sửa hành chính: mỗi lần lưu tạo bản ghi MỚI chưa có biên nhận, nếu không gửi thì người đã liên thông sẽ tụt về "Chưa liên thông".
+    // Gửi lại toàn bộ hồ sơ hiện có của người này (không chỉ mục vừa sửa) để cổng có bản đầy đủ.
+    try {
+      const out = await submitPatient(c, cccd);
+      log(`Đã tự động liên thông Bộ Y tế (cơ sở ${out.ma})${out.rejected ? `, cổng từ chối ${out.rejected} mục` : ''}.`, out.rejected ? 'warn' : 'ok');
+    } catch (e) { log(`Đã lưu, nhưng chưa liên thông được: ${(e as Error).message}`, 'warn'); }
     await load();
     setDirty(new Set());
     // select() tự đưa về chế độ xem (an toàn) sau khi nạp lại dữ liệu mới lưu; bấm "Sửa" nếu muốn sửa tiếp.
@@ -189,7 +216,7 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
     if (!mine.length) { log('Không có mục nào do thiết bị này tạo - không được phép xoá (chỉ thiết bị đã tạo mới xoá được).', 'warn'); return; }
     for (const r of mine) await c.deleteRecord(r.id);
     log(`Đã xoá ${mine.length} mục.`, 'ok');
-    reset(); setMode('new'); await load();
+    focusPatient.clear(); reset(); setMode('new'); await load();
   });
 
   /** Dò những hồ sơ ĐÃ CÓ mục khám (vd đã nhập Thể lực từ trước) nhưng chưa liên thông (nhập trước khi có tính năng tự động) - liên
@@ -202,6 +229,10 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
       log(out.total ? `Đã liên thông thêm ${out.ok}/${out.total} hồ sơ đã có mục khám từ trước.` : 'Không có hồ sơ nào cần liên thông thêm.', out.total ? 'ok' : 'warn');
     } finally { setProg(null); setProgLabel('Đang giải mã'); }
   });
+
+  /** Kiểm tra trùng CCCD (như nút "Check trùng CCCD" của app cũ): đang nhập người MỚI mà số định danh đã có trong đơn vị. */
+  const dupOf = useMemo(() => (mode === 'new' && hc.cccd.length === 12 ? rows.find((r) => r.data?.cccd === hc.cccd) : undefined), [mode, hc.cccd, rows]);
+  const dupMsg = dupOf ? `Số định danh này đã có trong đơn vị (hồ sơ "${dupOf.data!.hoTen}"). Lưu sẽ ghi thêm phiên bản mới cho chính người đó, không tạo người mới — bấm vào dòng trong danh sách bên dưới rồi "Sửa" nếu muốn sửa hồ sơ cũ.` : '';
 
   const counts = useMemo(() => ({
     all: rows.length,
@@ -220,7 +251,7 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
   });
 
   const body = {
-    hanhchinh: <PanelHanhChinh d={hc} set={(v) => { setHc(v); mark('hanhchinh'); }} off={off('hanhchinh')} child={child} lockCccd={mode === 'edit'} />,
+    hanhchinh: <PanelHanhChinh d={hc} set={(v) => { setHc(v); mark('hanhchinh'); }} off={off('hanhchinh')} child={child} lockCccd={mode === 'edit'} dup={dupMsg} />,
     lankham: <PanelLanKham d={lk} set={(v) => { setLk(v); mark('lankham'); }} off={off('lankham')} />,
     tiensu: <PanelTienSu d={ts} set={(v) => { setTs(v); mark('tiensu'); }} off={off('tiensu')} />,
     thecuc: <PanelTheLuc d={tl} set={(v) => { setTl(v); mark('thecuc'); }} off={off('thecuc')} />,
@@ -230,7 +261,14 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
       denied={Object.fromEntries(LAM_SANG.map((k) => [k.khoa, !!denied[`ls:${k.khoa}`]]))} child={child}
       onNormal={() => applyLs((k) => MAU_NHANH['Bình thường'](k.muc))}
       onClear={() => applyLs((k) => Object.fromEntries(k.muc.map((m) => [m, { kq: '', loai: '' }])))}
-      onLoad={(name) => applyLs((k) => MAU_NHANH[name](k.muc))} />,
+      onLoad={(name) => applyLs((k) => (customMau[name] ? customMau[name][k.khoa] ?? MAU_NHANH['Bình thường'](k.muc) : MAU_NHANH[name](k.muc)))}
+      custom={Object.keys(customMau)}
+      onSaveMau={(name) => {
+        const m: Mau = {};
+        for (const k of LAM_SANG) if (ls[k.khoa] && (child || k.khoa !== 'Nhi')) m[k.khoa] = ls[k.khoa];
+        setCustomMau(luuMau(name, m)); log(`Đã lưu mẫu mặc định "${name}" (trên máy này).`, 'ok');
+      }}
+      onDeleteMau={(name) => { setCustomMau(xoaMau(name)); log(`Đã xóa mẫu "${name}".`, 'ok'); }} />,
     canlamsang: <PanelCanLamSang d={cls} set={(v) => { setCls(v); mark('canlamsang'); }} off={off('canlamsang', 'XetNghiem')} sex={hc.gioiTinh} child={child} />,
     ketluan: <PanelKetLuan d={kl} set={(v) => { setKl(v); mark('ketluan'); }} off={off('ketluan')} />,
   };
@@ -241,16 +279,17 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
       <aside className="side">
         <div className="sidehead">THAO TÁC</div>
         <div className="ops">
-          <button className="op" onClick={() => { reset(); setSel(null); setMode('new'); setSec('hanhchinh'); }}>＋ Mới</button>
+          <button className="op" onClick={() => { focusPatient.clear(); reset(); setSel(null); setMode('new'); setSec('hanhchinh'); }}>＋ Mới</button>
           <button className="op" disabled={mode === 'view'} onClick={() => void save()}>💾 Lưu</button>
           <button className="op" disabled={!sel?.data || mode !== 'view'} onClick={() => setMode('edit')}>✎ Sửa</button>
           <button className="op" disabled={!sel?.data} onClick={() => void del()}>✕ Xóa</button>
         </div>
         <div className="sidehead">NỘI DUNG PHIẾU</div>
+        {Object.keys(denied).length > 0 && <div style={{ fontSize: 12, color: '#5d6b79', padding: '0 14px 6px' }}>🔒 không hiển thị với tài khoản của bạn · ◐ chỉ hiển thị một phần</div>}
         <nav>
           {NAV.map(([k, label]) => (
             <a key={k} href="#" className={sec === k ? 'on' : ''} onClick={(e) => { e.preventDefault(); goSec(k); }}>
-              {label}{(k === 'lamsang' ? Object.keys(denied).some((x) => x.startsWith('ls:')) : denied[k]) ? ' 🔒' : ''}
+              {label}{k === 'lamsang' ? (Object.keys(denied).filter((x) => x.startsWith('ls:')).length >= LAM_SANG.length ? ' 🔒' : Object.keys(denied).some((x) => x.startsWith('ls:')) ? ' ◐' : '') : denied[k] ? ' 🔒' : ''}
               {dirty.has(k) || [...dirty].some((x) => k === 'lamsang' && x.startsWith('ls:')) ? ' •' : ''}
             </a>
           ))}
@@ -260,21 +299,21 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
             const bad = rows.filter((r) => r.data && validateHanhChinh(r.data).length);
             alert(bad.length ? `Có ${bad.length} hồ sơ lỗi dữ liệu:\n` + bad.slice(0, 15).map((r) => `- ${r.data!.hoTen}: ${validateHanhChinh(r.data!).join('; ')}`).join('\n') : 'Dữ liệu hợp lệ.');
           }}>Kiểm tra dữ liệu import</button>
-          <button className="wide" disabled={!!prog} onClick={() => void backfill()} title="Dò hồ sơ đã có mục khám (vd Thể lực) nhưng chưa liên thông, rồi liên thông từng người một">📤 Liên thông hồ sơ đã có mục khám</button>
+          <button className="wide" disabled={!!prog} onClick={() => void backfill()}>📤 Liên thông hồ sơ đã có mục khám</button>
           <button className="wide" onClick={() => setHide(!hide)}>{hide ? 'Hiện danh sách' : 'Ẩn danh sách'}</button>
         </div>
       </aside>
 
       <section className="main">
         <div className="panel" ref={panelRef} onScroll={onScroll}>
-          {info && <div className="warnbar">{info}</div>}
-          {sel?.data && mode !== 'new' && <div className={lt(sel) ? 'okbar' : 'warnbar'}>Liên thông Bộ Y tế: {receiptText(rcpt.get(sel.rec.id))}{bytErr ? ' (cổng chưa kết nối)' : ''}</div>}
-          {sel?.data && mode !== 'new' && <div className="okbar" title="Phụ huynh không cần mã nào: chỉ cần số CCCD và ngày sinh của học sinh.">👪 Phụ huynh tra cứu bằng số CCCD <b>{sel.data.cccd}</b> + ngày sinh <b>{sel.data.ngaySinh ? sel.data.ngaySinh.split('-').reverse().join('/') : '(chưa có)'}</b> của học sinh</div>}
-          {NAV.map(([k, label]) => (
+          {info && !(sel && !sel.data) && <div className="warnbar">{info}</div>}
+          {sel && !sel.data && <div className="denied" role="alert"><b>🔒 Không mở được hồ sơ này</b><br />{lockedWhy}</div>}
+          {sel?.data && mode !== 'new' && lt(sel) && <div className="okbar">Liên thông Bộ Y tế: {receiptText(rcpt.get(sel.rec.id))}</div>}
+          {!(sel && !sel.data) && NAV.map(([k, label]) => (
             <section key={k} id={`sec-${k}`} className="examsec">
               <div className="examsechead">{label}{isDenied(k) ? ' 🔒' : ''}</div>
               {isDenied(k)
-                ? <div className="denied"><b>🔒 Mục này được mã hoá, tài khoản của bạn không có thuộc tính để đọc.</b><p>Chính sách tự sinh quyết định ai đọc được mục này; máy chủ cũng không đọc được. Nếu bệnh nhân nguy kịch, bác sĩ có thể dùng chức năng <b>Khoá của tôi → Phá vỡ kính</b> (mọi tổ chức sẽ nhận cảnh báo).</p></div>
+                ? <div className="denied"><b>🔒 Mục này không hiển thị với tài khoản của bạn</b> (thuộc khoa/quyền khác, hoặc chưa có dữ liệu). <u>Không suy ra là bình thường.</u> Nếu cần cho chẩn đoán, hãy liên hệ khoa phụ trách hoặc người nhập hồ sơ.</div>
                 : body[k]}
             </section>
           ))}
@@ -288,7 +327,7 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
               ))}
               <input className="search" placeholder="Tìm kiếm" value={q} onChange={(e) => setQ(e.target.value)} />
               <button className="reload" onClick={() => void run('Tải lại danh sách', () => load())}>⟳ Tải lại danh sách đã lưu</button>
-              <span className="livepill" title="Danh sách tự cập nhật khi người khác nhập">● trực tiếp{liveAt ? ' · ' + liveAt.toLocaleTimeString('vi-VN') : ''}</span>
+              <span className="livepill">● trực tiếp{liveAt ? ' · ' + liveAt.toLocaleTimeString('vi-VN') : ''}</span>
             </div>
             {loadError && <div className="warnbar" role="alert">Không tải được hồ sơ: {loadError}</div>}
             {prog && <div className="progress"><div style={{ width: `${(prog.d / Math.max(1, prog.t)) * 100}%` }} /><span>{progLabel} {prog.d}/{prog.t} hồ sơ…</span></div>}
@@ -304,7 +343,7 @@ export function Exam({ unit, templateId }: { unit: string; templateId: string })
                         <td>{r.data.dienThoai}</td><td>{r.data.cccd}</td><td>{r.data.giamHo.hoTen}</td></> : <td colSpan={8} className="lock">🔒 mã hoá - không đủ quyền đọc</td>}
                     </tr>
                   ))}
-                  {!shown.length && !prog && <tr><td colSpan={10} className="muted">{isLoading ? 'Đang tải hồ sơ…' : loadError ? 'Danh sách chưa tải được. Kiểm tra lỗi kết nối phía trên rồi bấm Tải lại.' : rows.length ? 'Không có hồ sơ khớp bộ lọc. Xoá từ tìm kiếm hoặc chọn Import excel.' : 'Đơn vị này chưa có hồ sơ trên máy chủ đang kết nối. Chọn đúng Công ty hoặc Import Excel.'}</td></tr>}
+                  {!shown.length && !prog && <tr><td colSpan={10} className="muted">{isLoading ? 'Đang tải hồ sơ…' : loadError ? 'Chưa tải được danh sách.' : rows.length ? 'Không có hồ sơ khớp.' : 'Chưa có hồ sơ.'}</td></tr>}
                 </tbody>
               </table>
             </div>

@@ -18,7 +18,9 @@ import { bytPublicKey, startGateway } from './byt.js';
 
 const CCCD = '079099990001';
 const NGAY_SINH = '2013-05-12';
-const SECRETS = ['NGUYEN VAN NAN', CCCD, '152.5', '41.5', 'Viem hong cap', 'Nhi khoa'];   // những chuỗi mà kẻ tấn công muốn thấy
+const SECRETS_0 = 'NGUYEN VAN NAN';
+const TEN_HS = SECRETS_0;
+const SECRETS = [SECRETS_0, CCCD, '152.5', '41.5', 'Viem hong cap', 'Nhi khoa'];   // những chuỗi mà kẻ tấn công muốn thấy
 
 const out = (s = '') => console.log(s);
 const title = (s: string) => out(`\n${'='.repeat(78)}\n${s}\n${'='.repeat(78)}`);
@@ -87,7 +89,7 @@ try {
   title('BƯỚC 1 · Máy nhập liệu (cán bộ khám) lưu hồ sơ học sinh — mã hoá NGAY TRÊN MÁY, rồi mới đẩy lên máy chủ');
   const nhapLieu = await person('May nhap lieu (Bac si Nhi + Tiep don)', both(['Role:TiepDon', 'Role:BacSi', 'Khoa:Nhi']));
   info(`Hồ sơ: ${SECRETS[0]} · CCCD ${CCCD} · cao 152.5 cm · nặng 41.5 kg · chẩn đoán "Viem hong cap"`);
-  await nhapLieu.saveRecord({ patientCode: CCCD, type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-DEMO', data: { hoTen: SECRETS[0], cccd: CCCD, ngaySinh: NGAY_SINH, lop: '6A1' } });
+  await nhapLieu.saveRecord({ patientCode: CCCD, type: 'hanhchinh', khoa: 'KSK', group: 'TRUONG-DEMO', data: { hoTen: TEN_HS, cccd: CCCD, ngaySinh: NGAY_SINH, lop: '6A1' } });
   await nhapLieu.saveRecord({ patientCode: CCCD, type: 'thecuc', khoa: 'KSK', data: { chieuCao: '152.5', canNang: '41.5' } });
   await nhapLieu.saveRecord({ patientCode: CCCD, type: 'lamsang', khoa: 'Nhi', data: { chanDoan: 'Viem hong cap', ghiChu: 'Nhi khoa' } });
   ok('Đã lưu 3 mục (hành chính, thể lực, lâm sàng Nhi). Mỗi mục là một phong bì AES-GCM riêng; khoá AES được bọc bằng CP-ABE theo chính sách riêng của mục.');
@@ -101,7 +103,7 @@ try {
 
   // ---------------------------------------------------------------------------------------------------------------------------------
   title('BƯỚC 2 · LIÊN THÔNG: cơ sở khám gửi bản ĐÃ MÃ HOÁ lên cổng Bộ Y tế, nhận biên nhận có chữ ký');
-  (await fetchForParent(BYT, CCCD, NGAY_SINH)).length === 0 ? ok('Trước khi liên thông: phụ huynh tra qua cổng Bộ Y tế chưa thấy gì (kho chính của cơ sở thì đã có).') : bad('cổng đã có dữ liệu trước khi gửi (bất thường)');
+  (await fetchForParent(BYT, CCCD, TEN_HS)).length === 0 ? ok('Trước khi liên thông: phụ huynh tra qua cổng Bộ Y tế chưa thấy gì (kho chính của cơ sở thì đã có).') : bad('cổng đã có dữ liệu trước khi gửi (bất thường)');
   const before = await nhapLieu.bytStatus(rows.map((r) => r.id));
   info(`Trạng thái trước khi gửi: ${before.size}/${rows.length} bản ghi có biên nhận.`);
   const facility = (await nhapLieu.bytInfo()).facilities[0];
@@ -117,8 +119,8 @@ try {
   const rowsAll = await nhapLieu.listRecords(CCCD);
   await nhapLieu.bytSubmit(rowsAll, facility.ma);
   ok('Gửi lại phần đã sửa: đủ biên nhận.');
-  const phuHuynhQuaBYT = await fetchForParent(BYT, CCCD, NGAY_SINH);
-  ok(`Sau khi liên thông: phụ huynh tra qua cổng Bộ Y tế thấy ${phuHuynhQuaBYT.length} mục (cần CCCD + ngày sinh của học sinh).`);
+  const phuHuynhQuaBYT = await fetchForParent(BYT, CCCD, TEN_HS);
+  ok(`Sau khi liên thông: phụ huynh tra qua cổng Bộ Y tế thấy ${phuHuynhQuaBYT.length} mục (cần họ tên + CCCD của học sinh).`);
 
   // ---------------------------------------------------------------------------------------------------------------------------------
   title('BƯỚC 3 · Bộ Y tế (Sở Y tế) tải bản mã hoá TỪ CỔNG rồi giải mã trên máy mình — có Org:SoYTe và ≥ 2/3 nút cấp khoá');
@@ -183,18 +185,18 @@ try {
   ok('Mỗi lần thử đọc sai quyền để lại dấu vết cho SOC/Wazuh (file JSON-lines hoặc /api/siem/events?format=cef).');
 
   // ---------------------------------------------------------------------------------------------------------------------------------
-  title('BƯỚC 8 · App tra cứu của phụ huynh — chỉ cần số CCCD + NGÀY SINH của học sinh (không mã, không tài khoản, không dùng ABE)');
-  info(`Phụ huynh nhập: CCCD ${CCCD} + ngày sinh ${NGAY_SINH.split('-').reverse().join('/')} — thứ phụ huynh vốn đã biết, nhà trường không phải phát mã nào.`);
-  const mine = await fetchForParent(BYT, CCCD, NGAY_SINH);        // tra cứu QUA CỔNG BỘ Y TẾ: chỉ thấy hồ sơ đã liên thông
-  ok(`Phụ huynh (qua cổng Bộ Y tế) nhập đúng CCCD + ngày sinh: thấy ${mine.length} mục (${mine.map((i) => i.type).join(', ')}). Giải mã ngay trên máy người tra cứu.`);
-  const sai = await fetchForParent(BYT, CCCD, '2013-01-01');
-  sai.length === 0 ? ok('Biết CCCD nhưng sai ngày sinh: không có gì.') : bad('Sai ngày sinh vẫn ra dữ liệu (BẤT THƯỜNG)');
-  const wrong = await fetchForParent(BYT, '079099990002', NGAY_SINH);
-  wrong.length === 0 ? ok('CCCD của em khác (dù trùng ngày sinh): không có gì.') : bad('CCCD khác vẫn ra dữ liệu (BẤT THƯỜNG)');
-  info('Ngày sinh được TRỘN VÀO khoá giải mã (scrypt), nên máy chủ/cổng chỉ giữ chỉ mục băm + ciphertext, không đọc được nội dung.');
-  info('LƯU Ý TRUNG THỰC (đánh đổi đã chọn để phụ huynh dễ dùng): ngày sinh có rất ít khả năng, và CCCD đã chứa sẵn năm sinh, nên ai BIẾT CCCD của em');
-  info('chỉ cần thử ~366 ngày là ra. Lớp bảo vệ còn lại: phải biết đúng CCCD, máy chủ giới hạn 20 lần tra/phút và ghi nhật ký. Kênh này không có quyền theo vai trò như ABE.');
-
+  title('BƯỚC 8 · App tra cứu của phụ huynh — chỉ cần HỌ TÊN + số CCCD của học sinh (không mã, không tài khoản, không dùng ABE)');
+  info(`Phụ huynh nhập: họ tên ${TEN_HS} + CCCD ${CCCD} — thứ phụ huynh vốn đã biết, nhà trường không phải phát mã nào.`);
+  const mine = await fetchForParent(BYT, CCCD, TEN_HS);        // tra cứu QUA CỔNG BỘ Y TẾ: chỉ thấy hồ sơ đã liên thông
+  ok(`Phụ huynh (qua cổng Bộ Y tế) nhập đúng họ tên + CCCD: thấy ${mine.length} mục (${mine.map((i) => i.type).join(', ')}). Giải mã ngay trên máy người tra cứu.`);
+  const sai = await fetchForParent(BYT, CCCD, 'NGUYEN VAN NAM');
+  sai.length === 0 ? ok('Biết CCCD nhưng sai họ tên: không có gì.') : bad('Sai họ tên vẫn ra dữ liệu (BẤT THƯỜNG)');
+  const wrong = await fetchForParent(BYT, '079099990002', TEN_HS);
+  wrong.length === 0 ? ok('CCCD của em khác (dù trùng họ tên): không có gì.') : bad('CCCD khác vẫn ra dữ liệu (BẤT THƯỜNG)');
+  info('Họ tên + CCCD được TRỘN VÀO khoá giải mã (scrypt), nên máy chủ/cổng chỉ giữ chỉ mục băm + ciphertext, không đọc được nội dung.');
+  info('LƯU Ý TRUNG THỰC (đánh đổi đã chọn để phụ huynh dễ dùng): họ tên KHÔNG phải bí mật nên thực chất chỉ số CCCD của em đang bảo vệ hồ sơ.');
+  info('Lớp bảo vệ còn lại: phải biết đúng CCCD, cổng giới hạn tốc độ + chặn IP dò nhiều lần không ra kết quả, ghi nhật ký. Kẻ có bản sao CSDL có thể đoán CCCD offline.');
+  info('Kênh này không có quyền theo vai trò như ABE.');
   title('TỔNG KẾT');
   out('  • Máy chủ lưu trữ: chỉ ciphertext + chỉ mục băm, không có plaintext, không có khoá.');
   out('  • Liên thông thật sự có biên nhận ký số: gửi bản mã hoá, nhận biên nhận, sửa sau khi gửi thì phải gửi lại; cổng cũng chỉ giữ ciphertext.');

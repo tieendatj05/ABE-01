@@ -2,6 +2,7 @@
 //   npx tsx src/deploy/nodes.ts      (cần Spring storage đang chạy; xem scripts/start-demo.mjs)
 import { readFileSync } from 'node:fs';
 import { createServer as createHttp } from 'node:http';
+import { createServer as createHttps } from 'node:https';
 import { join, resolve } from 'node:path';
 import { createNode } from '../authority/node.js';
 import type { Share } from '../abe/rw15.js';
@@ -18,10 +19,18 @@ export const NODE_PORTS: Record<string, number> = { BenhVien: 9001, SoYTe: 9002,
 
 export const ALL_OPERATIONAL_ATTRS = ['Role:TiepDon', 'Role:BacSi', 'Role:KTV', 'Role:KetLuan', 'Khoa:Nhi', 'Khoa:Mat', 'Khoa:TMH', 'Khoa:RHM', 'Khoa:XetNghiem'];
 
-export function startNodes(opts: { open?: { enabled: boolean; attrs: string[] }; ports?: Record<string, number>; dataDir: string; storageBase: string; registryPk: string; serviceToken: string; webhook?: string }) {
+export function startNodes(opts: {
+  open?: { enabled: boolean; attrs: string[] }; ports?: Record<string, number>; dataDir: string; storageBase: string; registryPk: string; serviceToken: string; webhook?: string;
+  /** Luồng nghiên cứu: bật /v2/partials (cấp khoá theo vé của backend). Nút gọi backend qua fetchFn (vd tlsFetch(CA)). */
+  research?: { backendBase: string }; fetchFn?: typeof fetch;
+  /** HTTPS cho nút (PKCS#12). Không có => HTTP như cũ. */
+  tls?: { pfx: Buffer; passphrase: string };
+  /** Chỉ chạy các nút này (mỗi nút trên một máy/tiến trình RIÊNG). Mặc định: cả ba. Chỉ đọc share của nút được chạy. */
+  only?: readonly string[];
+}) {
   const indexKey = readFileSync(resolve(opts.dataDir, 'dealer', 'index-key.txt'), 'utf8').trim();
   const tokens: Record<string, string> = {};
-  const servers = ORGS.map((org) => {
+  const servers = ORGS.filter((org) => !opts.only || opts.only.includes(org)).map((org) => {
     const dir = resolve(opts.dataDir, 'nodes', org);
     const share = JSON.parse(readFileSync(join(dir, 'share.json'), 'utf8')) as Share;
     const adminToken = need(`ADMIN_TOKEN_${org}`);
@@ -29,9 +38,10 @@ export function startNodes(opts: { open?: { enabled: boolean; attrs: string[] };
     tokens[org] = adminToken;
     const { app } = createNode({
       dir, org, share, adminToken, registryPk: opts.registryPk, storageBase: opts.storageBase, serviceToken: opts.serviceToken,
-      indexKey, requiresApproval: org === 'DienThoai', approverToken, webhook: opts.webhook, defaultOpen: opts.open,
+      indexKey, requiresApproval: org === 'DienThoai' && !opts.research, approverToken, webhook: opts.webhook, defaultOpen: opts.open,
+      research: opts.research, fetchFn: opts.fetchFn,
     });
-    const s = createHttp(app);
+    const s = opts.tls ? createHttps({ pfx: opts.tls.pfx, passphrase: opts.tls.passphrase, minVersion: 'TLSv1.2' }, app) : createHttp(app);
     s.listen((opts.ports ?? NODE_PORTS)[org], '0.0.0.0');
     return s;
   });

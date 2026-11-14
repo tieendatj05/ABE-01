@@ -43,6 +43,11 @@ export interface NodeOptions {
   indexKey: string;               // khoá chỉ mục mù (HMAC) dùng chung giữa các nút, giao cho nhân viên lâm sàng lúc đăng ký
   webhook?: string;               // URL nhận cảnh báo (kết nối SMS/Email/Slack...)
   fetchFn?: typeof fetch;
+  /**
+   * Luồng nghiên cứu: cấp khoá theo VÉ do backend (tài khoản người dùng) thay vì "holder"/mã cấp quyền theo thiết bị.
+   * Nút không giữ danh sách người dùng; mỗi lần cấp đều hỏi lại backend (giờ làm việc, trạng thái tài khoản, thiết bị, phiên).
+   */
+  research?: { backendBase: string };
 }
 
 export function createNode(o: NodeOptions) {
@@ -208,6 +213,40 @@ export function createNode(o: NodeOptions) {
     pending.delete(p.id);
     res.json(await issue(h, p.attrs));
   });
+
+  // ---- Luồng nghiên cứu: cấp khoá theo VÉ ----
+  // Máy khách đưa jti (vé một-lần do backend cấp sau khi qua ABAC + giờ làm việc) + chữ ký chứng minh sở hữu khoá thiết bị.
+  // Nút gọi backend `redeem` (token dịch vụ); backend ĐÁNH GIÁ LẠI rồi trả {gid, thuộc tính được cấp}. Nút chỉ cấp đúng các thuộc tính
+  // đó, gắn H(gid) của NGƯỜI (không phải thiết bị) => đổi máy vẫn cùng khoá; hai người khác GID không ghép được khoá.
+  if (o.research) {
+    const backend = o.research.backendBase;
+    app.post('/v2/partials', async (req, res) => {
+      const { jti, sig, attrs } = req.body ?? {};
+      if (typeof jti !== 'string' || !/^[0-9a-f]{32}$/.test(jti) || typeof sig !== 'string' || !/^[0-9a-f]{128}$/.test(sig) || !Array.isArray(attrs) || !attrs.length
+        || attrs.length > 64 || !attrs.every((a) => typeof a === 'string' && a.length < 200)) return void res.status(400).json({ error: 'jti/sig/attrs không hợp lệ' });
+      let redeem: Response;
+      try {
+        redeem = await f(`${backend}/api/v2/internal/tickets/redeem`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-service-token': o.serviceToken }, body: JSON.stringify({ jti, org: o.org, sig }) });
+      } catch { return void res.status(502).json({ error: 'BACKEND_UNREACHABLE' }); }
+      const g = (await redeem.json().catch(() => ({}))) as { error?: string; gid?: string; attrs?: string[]; indexKey?: boolean };
+      if (!redeem.ok || !g.gid) {
+        store.log('ticket', 'v2.deny', `${g.error ?? `HTTP ${redeem.status}`} jti=${jti.slice(0, 8)}`);
+        return void res.status(redeem.status === 423 ? 423 : 403).json({ error: g.error ?? 'DENIED' });
+      }
+      const dir = await epochs();
+      const granted = new Set(g.attrs ?? []);
+      const partials: Record<string, Partial> = {};
+      const denied: Record<string, string> = {};
+      for (const a of attrs as string[]) {
+        const ok = isIssuable(a, dir);
+        if (!ok.ok) denied[a] = ok.reason;
+        else if (!granted.has(ok.base)) denied[a] = 'vé không cho phép thuộc tính này';
+        else partials[a] = partialKey(o.share, g.gid, a);
+      }
+      store.log('ticket', 'v2.partials', `gid=${g.gid.slice(0, 8)}… ${Object.keys(partials).length} cấp, ${Object.keys(denied).length} từ chối`);
+      res.json({ partials, denied, indexKey: g.indexKey ? o.indexKey : undefined });
+    });
+  }
 
   // App xác thực trên điện thoại: xem và duyệt yêu cầu.
   const approver: express.RequestHandler = (req, res, next) => {

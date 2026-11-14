@@ -87,20 +87,13 @@ export function Monitor() {
   return (
     <section>
       <h2>Giám sát an ninh</h2>
-      <p className="sub">
-        Mỗi sự kiện cũng được ghi ra file JSON-lines (<code>data/siem/events.jsonl</code>) cho Wazuh, hoặc kéo qua <code>/api/siem/events?format=cef</code>.
-      </p>
 
       {/* ---------- CẢM BIẾN MẠNG ---------- */}
       <div className="agentbox">
-        <h3 style={{ marginTop: 0 }}>🛰️ Cảm biến mạng (phát hiện ARP spoofing / MITM){' '}
-          {net && (net.online ? <span className="ok">● cảm biến đang chạy</span> : <span className="bad">● cảm biến MẤT KẾT NỐI / thiếu dữ liệu</span>)}
+        <h3 style={{ marginTop: 0 }}>🛰️ Cảm biến mạng{' '}
+          {net && (net.online ? <span className="ok">● cảm biến đang chạy</span> : <span className="bad">● cảm biến mất kết nối</span>)}
         </h3>
-        <p className="sub">
-          Đọc bảng ARP của card LAN ngay trong tiến trình chính (không phải ở trình duyệt) và đối chiếu với <b>baseline đã duyệt</b>.
-          <b> Thiếu dữ liệu KHÔNG có nghĩa là an toàn.</b> Chỉ phát hiện dấu hiệu trong LAN IPv4; không bảo đảm bắt được nghe lén thụ động hay IPv6.
-        </p>
-        {!hasSensor && <div className="warn">Bản này không phải trạm quản trị Windows nên không có cảm biến mạng.</div>}
+        {!hasSensor && <div className="warn">Không có cảm biến mạng.</div>}
         {net && (
           <>
             <div className="sub" style={{ marginBottom: 6 }}>
@@ -109,8 +102,8 @@ export function Monitor() {
               · baseline:{' '}
               {net.baselineApproved
                 ? <span className="ok">đã duyệt ({net.baselineCount} mục)</span>
-                : <span className="warn">CHƯA DUYỆT — chưa thể kết luận có bị tấn công hay không</span>}
-              {' '}<button className="mini2" disabled={!hasSensor || !net.observedCount} onClick={() => void approveBaseline()}>Duyệt baseline (mạng đang sạch)</button>
+                : <span className="warn">CHƯA DUYỆT</span>}
+              {' '}<button className="mini2" disabled={!hasSensor || !net.observedCount} onClick={() => void approveBaseline()}>Duyệt baseline</button>
             </div>
             {netMsg && <div className="warn" style={{ marginBottom: 6 }}>{netMsg}</div>}
             {net.table.length > 0 && (
@@ -120,7 +113,7 @@ export function Monitor() {
                   {net.table.map((r) => (
                     <tr key={r.ip} className={r.mismatch ? 'bad' : ''}>
                       <td>{r.ip}</td>
-                      <td><code>{r.mac}</code>{r.locallyAdministered && <small title="MAC ngẫu nhiên/riêng tư (vd iPhone/MacBook)"> ·riêng tư</small>}</td>
+                      <td><code>{r.mac}</code>{r.locallyAdministered && <small> ·riêng tư</small>}</td>
                       <td>{r.state}</td>
                       <td>{r.baselineMac ? <code>{r.baselineMac}</code> : <small>(chưa có)</small>}</td>
                       <td>{r.baselineMac ? (r.mismatch ? '⚠️ KHÁC baseline' : '✓ khớp') : '—'}</td>
@@ -130,7 +123,7 @@ export function Monitor() {
               </table>
             )}
             {netAlerts.length > 0 && (
-              <div className="warnbar"><b>Cảnh báo mạng:</b> {netAlerts.length} sự kiện NET_* (xem bảng sự kiện bên dưới). Thay đổi IP↔MAC là <b>dấu hiệu</b>, cần xác minh trước khi kết luận.</div>
+              <div className="warnbar"><b>Cảnh báo mạng:</b> {netAlerts.length} sự kiện NET_*.</div>
             )}
           </>
         )}
@@ -140,31 +133,26 @@ export function Monitor() {
       <div className="agentbox">
         <h3 style={{ marginTop: 0 }}>🧠 Phân tích bằng Gemini{' '}
           {ai && (ai.state === 'ready' ? <span className="ok">● sẵn sàng ({ai.model})</span>
-            : ai.state === 'not_configured' ? <span className="warn">● bật nhưng chưa có GEMINI_API_KEY</span>
+            : ai.state === 'not_configured' ? <span className="warn">● chưa có API key</span>
             : <span className="bad">● đã tắt</span>)}
         </h3>
-        <p className="sub">
-          AI chỉ <b>hỗ trợ giải thích</b> cảnh báo; <b>không</b> tự khoá thiết bị hay chạy lệnh. Luật bảo vệ vẫn chạy khi AI tắt/lỗi/hết quota.
-          Chỉ gửi trường sự kiện đã lọc (không gửi hồ sơ bệnh nhân, token hay khoá).
-        </p>
         <button className="mini2" disabled={analyzing || (ai?.state !== 'ready')} onClick={() => void analyze()}>
           {analyzing ? 'Đang phân tích…' : 'Phân tích cảnh báo bằng AI'}
         </button>
         {aiResult && (
           <div style={{ marginTop: 8 }}>
-            {aiResult.state === 'disabled' && <div className="warn">AI đang tắt (MEDABE_AI_ENABLED=false).</div>}
-            {aiResult.state === 'not_configured' && <div className="warn">Chưa cấu hình GEMINI_API_KEY trên máy chủ.</div>}
-            {aiResult.state === 'quota' && <div className="warn">Gemini hết quota/bị giới hạn. {aiResult.message}</div>}
-            {aiResult.state === 'error' && <div className="bad">Lỗi phân tích: {aiResult.message}</div>}
+            {aiResult.state === 'disabled' && <div className="warn">AI đang tắt.</div>}
+            {aiResult.state === 'not_configured' && <div className="warn">Chưa có API key.</div>}
+            {aiResult.state === 'quota' && <div className="warn">Hết quota. {aiResult.message}</div>}
+            {aiResult.state === 'error' && <div className="bad">Lỗi: {aiResult.message}</div>}
             {(aiResult.state === 'ok' || aiResult.state === 'cached') && aiResult.analysis && (
               <div className="grid small" style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}>
                 <div><b>Tóm tắt:</b> {aiResult.analysis.summary} {aiResult.state === 'cached' && <small>(kết quả đã lưu)</small>}</div>
                 <div><b>Độ tin cậy:</b> {aiResult.analysis.confidence}</div>
-                {aiResult.analysis.alternatives?.length > 0 && <div><b>Giải thích khác (không hẳn tấn công):</b> {aiResult.analysis.alternatives.join('; ')}</div>}
-                {aiResult.analysis.missing?.length > 0 && <div><b>Còn thiếu để chắc chắn:</b> {aiResult.analysis.missing.join('; ')}</div>}
-                {aiResult.analysis.recommendation?.length > 0 && <div><b>Đề xuất xử lý:</b> {aiResult.analysis.recommendation.join('; ')}</div>}
-                <div><b>Giới hạn nhận định:</b> {aiResult.analysis.limits}</div>
-                <small>Đây là nhận định của AI, không phải quyết định tự động. Admin tự xác minh bằng chứng trước khi hành động.</small>
+                {aiResult.analysis.alternatives?.length > 0 && <div><b>Giải thích khác:</b> {aiResult.analysis.alternatives.join('; ')}</div>}
+                {aiResult.analysis.missing?.length > 0 && <div><b>Còn thiếu:</b> {aiResult.analysis.missing.join('; ')}</div>}
+                {aiResult.analysis.recommendation?.length > 0 && <div><b>Đề xuất:</b> {aiResult.analysis.recommendation.join('; ')}</div>}
+                <div><b>Giới hạn:</b> {aiResult.analysis.limits}</div>
               </div>
             )}
           </div>
@@ -173,10 +161,8 @@ export function Monitor() {
 
       {/* ---------- AGENT LUẬT ---------- */}
       <div className="agentbox">
-        <h3 style={{ marginTop: 0 }}>🤖 Agent bảo vệ (luật) {agent && (agent.enabled ? <span className="ok">● đang hoạt động</span> : <span className="bad">● đã tắt</span>)}</h3>
-        <p className="sub">
-          Chạy trong máy chủ, không gọi AI/Internet. <b>Tự động khoá thiết bị / khoá đăng ký</b> khi vượt ngưỡng. Đã tự xử lý <b>{agent?.totalAlerts ?? '…'}</b> lần.
-        </p>
+        <h3 style={{ marginTop: 0 }}>🤖 Agent bảo vệ {agent && (agent.enabled ? <span className="ok">● đang hoạt động</span> : <span className="bad">● đã tắt</span>)}</h3>
+        <p className="sub">Đã tự xử lý <b>{agent?.totalAlerts ?? '…'}</b> lần.</p>
         {agent && (
           <table className="grid small" style={{ marginBottom: 10 }}>
             <thead><tr><th>Luật đang theo dõi</th><th>Ngưỡng</th><th>Hành động tự động</th></tr></thead>
@@ -185,7 +171,7 @@ export function Monitor() {
         )}
         {agentActions.length > 0 && (
           <>
-            <div className="sub" style={{ marginBottom: 4 }}><b>Hành động gần đây của agent:</b></div>
+            <div className="sub" style={{ marginBottom: 4 }}><b>Hành động gần đây:</b></div>
             <table className="grid small">
               <tbody>
                 {agentActions.slice(0, 8).map((e) => (

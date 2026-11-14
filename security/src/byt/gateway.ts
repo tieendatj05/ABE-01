@@ -4,6 +4,8 @@
 //     ứng dụng được lấy từ các biên nhận này, không còn là một cờ tự đặt.
 //   - Cán bộ Bộ Y tế (thuộc tính ABE Org:SoYTe) tải ciphertext từ đây rồi giải mã TRÊN MÁY MÌNH.
 //   - Phụ huynh tra cứu qua đúng các đường /api/public/* như ở kho chính, nên chỉ cần đổi địa chỉ máy chủ trong ứng dụng phụ huynh.
+//   - Ngoài ứng dụng LAN còn có `publicApp`: CHỈ chứa /api/public/* (+ giao diện app phụ huynh nếu có thư mục `staticDir`) và KHÔNG chặn theo LAN, để điện thoại
+//     dùng 4G/WiFi khác vẫn tra cứu được (qua đường hầm HTTPS). Mọi đường /byt/* (gửi, tải của nhân viên/Bộ Y tế) KHÔNG có ở đây.
 // Xác thực người gửi: chữ ký ECDSA của thiết bị lên từng yêu cầu + chứng chỉ Ed25519 do registry cấp (cổng chỉ cần khoá công khai của registry).
 // Giới hạn (mô phỏng): cổng chạy cùng mạng/cùng máy demo, chưa có TLS, chưa kiểm tra quyền ghi của người gửi (ABE chỉ bảo vệ việc ĐỌC).
 import { randomUUID } from 'node:crypto';
@@ -14,6 +16,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import express from 'express';
 import { deviceIdOf, gidMessage } from '../authority/node.js';
+import { certMessage } from '../research/verify.js';
 import { JsonStore, type AuditRec } from '../common/persist.js';
 import { isLanPeer } from '../network/lan.js';
 import { contentHashOf, receiptMessage, type Receipt } from './receipt.js';
@@ -28,6 +31,9 @@ export interface GatewayOptions {
   registryPk: string;           // khoá công khai Ed25519 của registry (để kiểm tra chứng chỉ thiết bị)
   facilities: Facility[];       // các cơ sở được phép gửi (mã CSKCB)
   now?: () => number;
+  staticDir?: string;           // thư mục giao diện app phụ huynh (app/parent/dist) để `publicApp` phục vụ cùng nguồn gốc với API
+  /** `publicApp` đứng sau đường hầm/proxy: lấy IP thật từ CF-Connecting-IP / X-Forwarded-For. CHỈ bật khi listener chỉ nhận kết nối từ proxy (mặc định bind 127.0.0.1). */
+  trustProxy?: boolean;
 }
 
 interface StoredRecord {
@@ -87,11 +93,14 @@ export function createGateway(o: GatewayOptions) {
   interface Caller { gid: string; deviceId: string; devicePub: string }
   async function authenticate(req: express.Request): Promise<Caller | string> {
     try {
-      const device = JSON.parse(Buffer.from(String(req.header('x-device') ?? ''), 'base64').toString('utf8')) as { gid: string; devicePub: string; cert: string };
+      const device = JSON.parse(Buffer.from(String(req.header('x-device') ?? ''), 'base64').toString('utf8')) as { gid: string; devicePub: string; cert: string; userId?: string; deviceId?: string };
       const ts = Number(req.header('x-ts')), sig = String(req.header('x-sig') ?? '');
       if (!/^[0-9a-f]{32}$/.test(device.gid) || !/^04[0-9a-f]{128}$/.test(device.devicePub) || !HEX.test(device.cert) || !HEX.test(sig)) return 'thiếu hoặc sai thông tin thiết bị';
       if (!Number.isFinite(ts) || Math.abs(now() - ts) > WINDOW_MS) return 'yêu cầu hết hạn (kiểm tra đồng hồ máy)';
-      if (!ed25519.verify(hexToBytes(device.cert), gidMessage(device.gid, device.devicePub), hexToBytes(o.registryPk))) return 'chứng chỉ thiết bị không hợp lệ';
+      // Thiết bị đăng ký kiểu cũ: chứng chỉ ký (gid, khoá). Thiết bị của TÀI KHOẢN (email + mật khẩu): chứng chỉ ký thêm userId và deviceId, nên máy gửi kèm hai trường đó (được chứng chỉ bảo vệ, không giả được).
+      const account = typeof device.userId === 'string' && typeof device.deviceId === 'string' && device.userId.length > 0 && device.deviceId.length > 0;
+      const certMsg = account ? new TextEncoder().encode(certMessage(device.userId!, device.gid, device.deviceId!, device.devicePub)) : gidMessage(device.gid, device.devicePub);
+      if (!ed25519.verify(hexToBytes(device.cert), certMsg, hexToBytes(o.registryPk))) return 'chứng chỉ thiết bị không hợp lệ';
       const raw = (req as express.Request & { raw?: Buffer }).raw ?? Buffer.alloc(0);
       const msg = `byt|${req.method}|${req.originalUrl}|${ts}|${bytesToHex(sha256(raw))}`;
       const pub = await crypto.subtle.importKey('raw', hexToBytes(device.devicePub) as BufferSource, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
@@ -99,7 +108,7 @@ export function createGateway(o: GatewayOptions) {
       for (const [k, t] of seenSigs) if (now() - t > WINDOW_MS) seenSigs.delete(k);
       if (seenSigs.has(sig)) return 'yêu cầu đã được dùng (phát lại)';
       seenSigs.set(sig, now());
-      return { gid: device.gid, devicePub: device.devicePub, deviceId: deviceIdOf(device.devicePub) };
+      return { gid: device.gid, devicePub: device.devicePub, deviceId: account ? device.deviceId! : deviceIdOf(device.devicePub) };
     } catch {
       return 'không xác thực được thiết bị';
     }
@@ -206,24 +215,68 @@ export function createGateway(o: GatewayOptions) {
   }));
 
   // ---------- phụ huynh tra cứu qua Bộ Y tế: cùng hình dạng với /api/public/* của kho chính ----------
-  const rate = (limit: number) => { const m = new Map<string, number[]>(); return (ip: string) => { const t = now(); const a = (m.get(ip) ?? []).filter((x) => t - x < 60_000); a.push(t); m.set(ip, a); return a.length <= limit; }; };
-  const recordsRate = rate(20), versionRate = rate(120);
+  // Cửa sổ trượt đếm theo khoá (IP). Dùng đồng hồ `now` để kiểm thử được.
+  const windowed = (windowMs: number) => {
+    const m = new Map<string, number[]>();
+    const live = (k: string) => { const t = now(); const a = (m.get(k) ?? []).filter((x) => t - x < windowMs); if (a.length) m.set(k, a); else m.delete(k); return a; };
+    return {
+      add(k: string) { if (m.size > 20_000) for (const x of [...m.keys()]) live(x); const a = live(k); a.push(now()); m.set(k, a); return a.length; },
+      count: (k: string) => live(k).length,
+    };
+  };
+  const recordsHits = windowed(60_000), versionHits = windowed(60_000), allHits = windowed(60_000);
+  const misses = windowed(10 * 60_000);                       // lần tra cứu KHÔNG ra kết quả theo IP: dấu hiệu dò CCCD
+  const MISS_LIMIT = 15, RECORDS_PER_MIN = 20, VERSION_PER_MIN = 120, ALL_PER_MIN = 900;
   const parentRows = (idx: string) => Object.values(S.records).filter((r) => r.parentIdx === idx && r.parentWrap).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  app.get('/api/public/parent-records', (req, res) => {
-    if (!recordsRate(req.socket.remoteAddress ?? '?')) return void res.status(429).json({ error: 'tra cứu quá nhanh, thử lại sau' });
-    const idx = String(req.query.parentIdx ?? '');
-    if (!/^[0-9a-f]{32}$/.test(idx)) return void res.status(400).json({ error: 'parentIdx sai' });
-    const rows = parentRows(idx).slice(0, 500);
-    if (rows.length) store.log('phu-huynh', 'parent.view', `parentIdx=${idx.slice(0, 8)} ${rows.length} bản ghi`);
-    res.json(rows.map((r) => ({ id: r.id, patientIdx: r.patientIdx, type: r.type, khoa: r.khoa, createdAt: r.createdAt, envelope: { iv: r.envelope.iv, ciphertext: r.envelope.ciphertext }, parentWrap: r.parentWrap })));
-  });
-  app.get('/api/public/parent-version', (req, res) => {
-    if (!versionRate(req.socket.remoteAddress ?? '?')) return void res.status(429).json({ error: 'quá nhanh' });
-    const idx = String(req.query.parentIdx ?? '');
-    if (!/^[0-9a-f]{32}$/.test(idx)) return void res.status(400).json({ error: 'parentIdx sai' });
-    const rows = parentRows(idx);
-    res.json({ n: rows.length, last: rows.length ? rows[rows.length - 1].createdAt : '' });
-  });
 
-  return { app, store, publicKey: key.pub };
+  const mountParent = (a: express.Express, ipOf: (req: express.Request) => string) => {
+    a.get('/api/public/ping', (_q, res) => res.json({ ok: true, name: 'KSK' }));
+    a.get('/api/public/parent-records', (req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+      const ip = ipOf(req);
+      if (misses.count(ip) >= MISS_LIMIT) return void res.status(429).json({ error: 'tra cứu không ra kết quả quá nhiều lần, thử lại sau ít phút' });
+      if (recordsHits.add(ip) > RECORDS_PER_MIN || allHits.add('*') > ALL_PER_MIN) return void res.status(429).json({ error: 'tra cứu quá nhanh, thử lại sau' });
+      const idx = String(req.query.parentIdx ?? '');
+      if (!/^[0-9a-f]{32}$/.test(idx)) return void res.status(400).json({ error: 'parentIdx sai' });
+      const rows = parentRows(idx).slice(0, 500);
+      if (rows.length) store.log('phu-huynh', 'parent.view', `parentIdx=${idx.slice(0, 8)} ${rows.length} bản ghi`);
+      else misses.add(ip);
+      res.json(rows.map((r) => ({ id: r.id, patientIdx: r.patientIdx, type: r.type, khoa: r.khoa, createdAt: r.createdAt, envelope: { iv: r.envelope.iv, ciphertext: r.envelope.ciphertext }, parentWrap: r.parentWrap })));
+    });
+    a.get('/api/public/parent-version', (req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+      if (versionHits.add(ipOf(req)) > VERSION_PER_MIN || allHits.add('*') > ALL_PER_MIN) return void res.status(429).json({ error: 'quá nhanh' });
+      const idx = String(req.query.parentIdx ?? '');
+      if (!/^[0-9a-f]{32}$/.test(idx)) return void res.status(400).json({ error: 'parentIdx sai' });
+      const rows = parentRows(idx);
+      res.json({ n: rows.length, last: rows.length ? rows[rows.length - 1].createdAt : '' });
+    });
+  };
+  mountParent(app, (req) => req.socket.remoteAddress ?? '?');
+
+  // ---------- ứng dụng CÔNG KHAI (qua đường hầm HTTPS): chỉ đường tra cứu của phụ huynh + giao diện ----------
+  const forwarded = (req: express.Request) => req.header('cf-connecting-ip') || String(req.header('x-forwarded-for') ?? '').split(',')[0].trim() || req.socket.remoteAddress || '?';
+  const publicApp = express();
+  publicApp.disable('x-powered-by');
+  publicApp.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-Frame-Options', 'DENY');
+    if (req.path.startsWith('/api/')) {
+      res.setHeader('Access-Control-Allow-Origin', '*');                       // WebView của app (https://localhost, capacitor://localhost) gọi chéo nguồn gốc
+      res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'content-type');
+      if (req.method === 'OPTIONS') return void res.sendStatus(204);
+    }
+    next();
+  });
+  mountParent(publicApp, o.trustProxy ? forwarded : (req) => req.socket.remoteAddress ?? '?');
+  const dist = o.staticDir && existsSync(join(o.staticDir, 'index.html')) ? o.staticDir : undefined;
+  if (dist) {
+    publicApp.use(express.static(dist, { index: 'index.html', setHeaders: (res, file) => { if (/(sw\.js|index\.html|manifest\.webmanifest)$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); } }));
+    publicApp.use((req, res, next) => (req.method === 'GET' && !req.path.startsWith('/api/') && !req.path.startsWith('/byt/') ? void res.sendFile(join(dist, 'index.html')) : next()));
+  }
+  publicApp.use((_req, res) => res.status(404).json({ error: 'not found' }));
+
+  return { app, publicApp, store, publicKey: key.pub };
 }

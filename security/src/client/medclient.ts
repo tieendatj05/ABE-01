@@ -4,7 +4,7 @@ import { verifyReceipt, type Receipt } from '../byt/receipt.js';
 // cấp khoá không bao giờ thấy plaintext. Bác sĩ chỉ gọi saveRecord/openRecord - policy, khoá, epoch, bọc lại khoá
 // đều tự động.
 import { nodeUrl, storageUrl } from './connection.js';
-import { clearParentCache, normDob, parentIdxOf, wrapForParent, type ParentWrap } from './parent.js';
+import { clearParentCache, normName, parentIdxOf, validName, wrapForParent, type ParentWrap } from './parent.js';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { hmac } from '@noble/hashes/hmac.js';
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -14,9 +14,13 @@ import {
   combineKey, decrypt, sharedRecordKey, decryptShared, encrypt, encryptShared, newKeyHeader, openDek, openKeyHeader, rewrap, rewrapKeyHeader,
   type AttrKey, type AuthorityPublic, type Envelope, type KeyHeader, type Partial, type SharedEnvelope,
 } from '../abe/rw15.js';
-import { parseVersioned, type EpochDirectory } from '../common/epoch.js';
+import { parseVersioned, versioned, type EpochDirectory } from '../common/epoch.js';
+import { ResearchClient, type ServerConfig as AccountConfig } from '../research/client.js';
+import { type DeviceKeyStore } from '../research/keys.js';
+import { POLICY_DOMAIN, certMessage } from '../research/verify.js';
 import { devicePubHex, signWithDevice, verifySig, type DeviceKeys } from './device.js';
 import { isStale, policyFor, SECTION_TYPES, type RecordProfile, type RecordType } from './policy.js';
+import { appPolicyString, khoasForType, type PolicyMatrix } from './app-policy.js';
 
 export interface NodeRef { org: string; url: string; x: number; token: string; requiresApproval: boolean }
 export interface ClientState {
@@ -33,11 +37,17 @@ export interface ClientState {
   indexKey: string;
   bg: Record<string, number>;           // patientIdx -> hạn phá-vỡ-kính (ms)
   pendingEnrollment?: boolean;
+  /** Có = đăng nhập bằng TÀI KHOẢN (email + mật khẩu): danh tính/vai trò/khoa do backend quản lý, "token" là token PHIÊN, khoá cấp qua vé. */
+  account?: { userId: string; username: string; role: string; khoa: string | null; /** Máy chủ ở xa qua HTTPS công khai (đường hầm): tin cậy bằng chứng chỉ HTTPS + khoá registry đã ghim, không dùng "bằng chứng địa chỉ LAN". */ remote?: boolean };
   shared?: Record<string, string>;      // chính sách -> id header dùng chung đã tạo (không bí mật; DEK lấy lại bằng cách mở header)
 }
 export interface RecordRow {
   id: string; patientIdx: string; groupIdx?: string; type: RecordType; khoa: string; authorDevice: string;
   envelope: Envelope | SharedEnvelope; createdAt: string; parentIdx?: string; parentWrap?: ParentWrap;
+  /** Tác giả THEO TÀI KHOẢN do backend gán từ phiên (không phải trường client tự khai). */
+  authorUserId?: string;
+  /** Mã ảnh gốc của một VÙNG ảnh (type 'vung'). */
+  refId?: string;
 }
 type StoredHeader = KeyHeader & { id: string };
 interface ServerConfig { registryPk: string; k: number; pk: AuthorityPublic; nodes: { org: string; url: string }[]; byt?: { url: string; pk: string } }
@@ -45,17 +55,28 @@ export interface BytFacility { ma: string; ten: string }
 export type BytRow = RecordRow & { receipt?: Receipt };
 export interface OpenResult {
   data: unknown;
-  author: { name: string; deviceId: string };
+  author: { name: string; deviceId: string; userId?: string };
   signatureValid: boolean;
   rewrapped: boolean;
+  /** Trường được KÝ cùng nội dung (khoa, refId, ràng buộc ảnh...). */
+  signed?: { khoa?: string; refId?: string; bind?: Record<string, unknown> };
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const post = (body: unknown, headers: Record<string, string> = {}): RequestInit => ({
   method: 'POST', redirect: 'error', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body),
 });
+/** Ngoài giờ làm việc (backend trả 423): đọc/ghi/import/xin khoá bị khoá. KHÔNG phải mất kết nối — dữ liệu đang nhập trên màn hình phải được giữ nguyên. */
+export class BusinessHoursError extends Error {
+  constructor(public info: Record<string, unknown> = {}) { super('Ngoài giờ làm việc: hệ thống đã khóa đọc, ghi, import và xin khóa. Dữ liệu đang nhập vẫn được giữ trên màn hình; hãy lưu lại khi hệ thống mở cửa.'); }
+}
+/** Phiên tài khoản hết hạn / tài khoản bị khóa / thiết bị bị thu hồi: phải đăng nhập lại. */
+export class SessionExpiredError extends Error {
+  constructor() { super('Phiên đăng nhập đã hết hạn hoặc tài khoản/thiết bị đã bị khóa. Hãy đăng nhập lại.'); }
+}
 async function json(r: Response) {
   const j = await r.json().catch((e: unknown) => { if (e instanceof SyntaxError) return {}; throw e; });
+  if (r.status === 423) throw new BusinessHoursError(j as Record<string, unknown>);
   if (!r.ok && r.status !== 202) throw new Error((j as { error?: string }).error ?? `HTTP ${r.status}`);
   return { status: r.status, body: j as Record<string, unknown> };
 }
@@ -85,7 +106,7 @@ export class MedClient {
     this.f = async (input, init = {}) => {
       const generation = this.begin();
       const target = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
-      if (target.hostname !== new URL(this.s.storageBase).hostname) throw new Error('Nút cấp khóa phải thuộc máy chủ LAN đã xác minh');
+      if (!this.s.account && target.hostname !== new URL(this.s.storageBase).hostname) throw new Error('Nút cấp khóa phải thuộc máy chủ LAN đã xác minh');   // chế độ tài khoản: nút lấy từ cấu hình HTTPS đã xác minh, có thể ở địa chỉ khác
       try {
         const response = await this.rawFetch(input, { ...init, redirect: 'error', signal: init.signal ? AbortSignal.any([init.signal, this.abort.signal]) : AbortSignal.any([this.abort.signal, AbortSignal.timeout(10000)]) });
         this.check(generation);
@@ -115,6 +136,45 @@ export class MedClient {
       name: r.name, storageBase, gid: r.gid, cert: r.cert, token: r.token, deviceId: r.deviceId, devicePub,
       nodes: [], attrs: [], keys: {}, indexKey: '', bg: {},
     }, dk, f);
+  }
+
+  /**
+   * QUÊN MẬT KHẨU (chưa đăng nhập): chỉ GỬI YÊU CẦU cho quản trị, không đổi gì. Máy chủ luôn trả cùng một kết quả dù tài khoản có tồn tại hay không.
+   * Quản trị xác minh danh tính rồi cấp mật khẩu TẠM ở trang Quản trị tài khoản. Ném lỗi FORGOT_RATE_LIMIT nếu gửi quá nhiều.
+   */
+  static async requestPasswordReset(baseUrl: string, username: string, opts: { fetch?: typeof fetch } = {}): Promise<void> {
+    const f = opts.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
+    const r = await f(`${storageUrl(baseUrl)}/api/v2/auth/forgot`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: username.trim().toLowerCase() }), redirect: 'error' });
+    if (r.status === 429) throw new Error('FORGOT_RATE_LIMIT');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  }
+
+  /**
+   * ĐĂNG NHẬP BẰNG TÀI KHOẢN (email + mật khẩu do công ty cấp). Máy chưa có khoá ký của người này thì tự đăng ký thiết bị (nhập lại mật khẩu, backend cấp chứng chỉ);
+   * tài khoản mới dùng mật khẩu TẠM phải truyền newPassword (nếu thiếu: ném PasswordChangeRequiredError). Vai trò/khoa/thuộc tính do backend quyết định.
+   */
+  static async signIn(baseUrl: string, username: string, password: string, store: DeviceKeyStore, opts: { newPassword?: string; fetch?: typeof fetch; deviceLabel?: string } = {}): Promise<MedClient> {
+    const base = storageUrl(baseUrl);
+    const f = opts.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
+    const rc = new ResearchClient({ baseUrl: base, fetch: f, store, deviceLabel: opts.deviceLabel });
+    const me = await rc.signIn(username, password, { newPassword: opts.newPassword });
+    const sess = await rc.exportSession();
+    const alg = { name: 'ECDSA', namedCurve: 'P-256' } as const;
+    const dk: DeviceKeys = {
+      sign: { privateKey: sess.device.signKey, publicKey: await crypto.subtle.importKey('raw', hexToBytes(sess.device.signPub) as BufferSource, alg, true, ['verify']) },
+      wrap: await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']),     // không dùng ở chế độ tài khoản (không có kho khoá bọc bằng passphrase)
+    };
+    const u = new URL(base);
+    const remote = u.protocol === 'https:' && !/^(\d{1,3}(\.\d{1,3}){3}|localhost|\[.*\])$/.test(u.hostname);
+    const c = new MedClient({
+      name: me.displayName, storageBase: base, gid: me.gid, cert: sess.cert, token: sess.token, deviceId: sess.device.deviceId, devicePub: sess.device.signPub,
+      nodes: sess.cfg.nodes.map((n) => ({ org: n.org, url: nodeUrl(n.url, base), x: 0, token: '', requiresApproval: false })),
+      attrs: me.attributes ?? [], keys: {}, indexKey: '', bg: {},
+      account: { userId: me.userId, username: me.username, role: me.role, khoa: me.khoa, remote },
+    }, dk, f);
+    if (remote) c.cfgCache = sess.cfg as ServerConfig;                  // khoá registry đã thấy lúc đăng nhập: từ nay ghim
+    await c.warmUp();
+    return c;
   }
 
   /** Máy chủ có đang cho phép đăng ký tự do (không cần mã mời) không? */
@@ -166,20 +226,35 @@ export class MedClient {
     if (r.indexKey) this.s.indexKey = r.indexKey;
   }
 
-  private auth() { return { authorization: `Bearer ${this.s.token}` }; }
+  /** Lý do truy cập hồ sơ. Máy chủ BẮT BUỘC với vai trò Giám sát (ghi nhật ký mỗi lần đọc); vai trò khác bỏ qua. Gửi kèm mọi yêu cầu, mã hoá URL (tiêu đề HTTP không chứa được dấu tiếng Việt). */
+  accessReason = '';
+  private auth(): Record<string, string> {
+    const reason = this.accessReason.trim();
+    return { authorization: `Bearer ${this.s.token}`, ...(reason ? { 'x-access-reason': encodeURIComponent(reason) } : {}) };
+  }
   private async get(path: string) { return (await json(await this.f(`${this.s.storageBase}${path}`, { headers: this.auth() }))).body; }
 
   /** Xoá cả DEK/header đã nhớ khi làm mới quyền; nội dung đã tải về trước đó không thể thu lại. */
   resetKeys() {
     this.s.keys = {}; clearParentCache(); this.patients.clear();
     for (const key of this.deks.values()) key.fill(0);
-    this.headers.clear(); this.deks.clear(); this.deniedHeaders.clear(); this.rewrappedHeaders.clear();
+    this.headers.clear(); this.deks.clear(); this.deniedHeaders.clear(); this.rewrappedHeaders.clear(); this.restricted.clear();
   }
 
   /** Chỉ mang token sang địa chỉ mới nếu máy chủ dùng đúng registry đã cấp chứng chỉ thiết bị. */
   private async verifiedConfig(base: string, signal?: AbortSignal): Promise<ServerConfig> {
+    const certMsg = this.s.account ? new TextEncoder().encode(certMessage(this.s.account.userId, this.s.gid, this.s.deviceId, this.s.devicePub)) : gidMessage(this.s.gid, this.s.devicePub);
+    if (this.s.account?.remote) {
+      const r = await this.rawFetch(`${base}/api/config`, { signal, cache: 'no-store', redirect: 'error' });
+      if (!r.ok) throw new Error('Máy chủ từ xa chưa sẵn sàng');
+      const cfg = (await r.json()) as ServerConfig;
+      const pinned = this.cfgCache?.registryPk;
+      if (pinned && pinned.toLowerCase() !== cfg.registryPk.toLowerCase()) throw new Error('Máy chủ từ xa đã đổi khoá registry: dừng kết nối');
+      if (!ed25519.verify(hexToBytes(this.s.cert), certMsg, hexToBytes(cfg.registryPk))) throw new Error('Đây là máy chủ khác nơi đã đăng ký thiết bị');
+      return cfg;
+    }
     const proof = await requestServerProof(base, this.rawFetch, this.cfgCache?.registryPk, signal);
-    if (!ed25519.verify(hexToBytes(this.s.cert), gidMessage(this.s.gid, this.s.devicePub), hexToBytes(proof.registryPk)))
+    if (!ed25519.verify(hexToBytes(this.s.cert), certMsg, hexToBytes(proof.registryPk)))
       throw new Error('Đây là máy chủ khác nơi đã đăng ký thiết bị');
     return proof.config;
   }
@@ -192,15 +267,29 @@ export class MedClient {
       const current = cfg.nodes.find((v) => v.org === n.org);
       if (!current) throw new Error(`Không tìm thấy nút ${n.org}`);
       const url = nodeUrl(current.url, base);
-      if (new URL(url).hostname !== new URL(base).hostname) throw new Error('Nút cấp khóa nằm ngoài máy chủ LAN đã xác minh');
+      if (!this.s.account && new URL(url).hostname !== new URL(base).hostname) throw new Error('Nút cấp khóa nằm ngoài máy chủ LAN đã xác minh');
       return { ...n, url };
     });
     this.abort.abort(); this.abort = new AbortController(); ++this.generation;
     this.s.storageBase = base; this.s.nodes = nodes; this.cfgCache = cfg; this.resetKeys(); this.online = true;
   }
+  /** Trạng thái giờ làm việc lần kiểm tra gần nhất (chỉ chế độ tài khoản). Đóng cửa KHÔNG phải mất kết nối: màn hình và dữ liệu đang nhập được giữ nguyên. */
+  business: { open: boolean; nextOpenAt: string | null; closesAt: string | null; now: string; scheduleVersion: number } | null = null;
+
   async checkConnection(): Promise<void> {
     const generation = this.begin();
-    await this.verifiedConfig(this.s.storageBase, this.abort.signal); this.check(generation);
+    if (!this.s.account?.remote) { await this.verifiedConfig(this.s.storageBase, this.abort.signal); this.check(generation); }   // từ xa: chứng chỉ HTTPS đã xác minh lúc kết nối; không lặp lại mỗi vài giây qua Internet
+    if (this.s.account) {
+      // Chế độ tài khoản: /status (công khai, luôn dùng được kể cả ngoài giờ) + /auth/me (phiên còn hiệu lực? tài khoản/thiết bị còn hoạt động?).
+      const st = (await json(await this.f(`${this.s.storageBase}/api/v2/status`, { signal: AbortSignal.timeout(4000), cache: 'no-store' }))).body as { businessOpen: boolean; nextOpenAt: string | null; closesAt: string | null; now: string; scheduleVersion: number };
+      this.business = { open: st.businessOpen, nextOpenAt: st.nextOpenAt, closesAt: st.closesAt, now: st.now, scheduleVersion: st.scheduleVersion };
+      if (!st.businessOpen) this.resetKeys();                         // nỗ lực tốt nhất: bỏ khoá khỏi bộ nhớ khi đóng cửa (KHÔNG phải bảo đảm — khoá đã sao chép vẫn dùng được)
+      const me = await this.f(`${this.s.storageBase}/api/v2/auth/me`, { headers: this.auth(), signal: AbortSignal.timeout(4000), cache: 'no-store' });
+      if (me.status === 401) throw new SessionExpiredError();
+      if (!me.ok) throw new Error('Tài khoản không còn được phép kết nối máy chủ KSK');
+      this.check(generation);
+      return;
+    }
     const response = await this.f(`${this.s.storageBase}/api/records/version?groupIdx=${'0'.repeat(32)}&type=hanhchinh`, {
       headers: this.auth(), signal: AbortSignal.timeout(4000), cache: 'no-store',
     });
@@ -258,8 +347,108 @@ export class MedClient {
     return r.body as { partials: Record<string, Partial> };
   }
 
+  /**
+   * Chế độ tài khoản: xin VÉ ở backend (kiểm phiên + thiết bị + tài khoản + GIỜ LÀM VIỆC + thuộc tính theo vai trò/khoa), rồi đưa vé + chứng minh sở hữu
+   * khoá thiết bị cho từng nút; nút hỏi lại backend trước khi cấp. Ghép khoá từ >= k nút. Khoá gắn GID của NGƯỜI nên đổi máy vẫn dùng được.
+   */
+  private async ensureKeysAccount(attrs: string[]): Promise<string[]> {
+    const generation = this.begin();
+    const k = (await this.config()).k;
+    const missing = [...new Set(attrs)].filter((a) => !this.s.keys[a]);
+    if (!missing.length) return [];
+    const ticket = (await json(await this.f(`${this.s.storageBase}/api/v2/keys/ticket`, post({ attrs: missing }, this.auth())))).body as { jti: string; attrs: string[] };
+    const asked = missing.filter((a) => ticket.attrs.includes(parseVersioned(a)?.base ?? ''));
+    let closed = false;
+    const answers = await Promise.all(this.s.nodes.map(async (n) => {
+      const sig = await signWithDevice(this.dk, `medabe/ticket/v1|${ticket.jti}|${n.org}`);
+      try {
+        const r = await this.f(`${n.url}/v2/partials`, { ...post({ jti: ticket.jti, sig, attrs: asked }), signal: AbortSignal.timeout(8000) });
+        if (r.status === 423) closed = true;
+        const j = (await r.json().catch(() => ({}))) as { partials?: Record<string, Partial>; indexKey?: string };
+        return r.ok ? j : null;
+      } catch { return null; }
+    }));
+    this.check(generation);
+    if (closed) throw new BusinessHoursError();
+    const ok = answers.filter((a): a is NonNullable<typeof a> => !!a);
+    if (ok.length < k) throw new Error(`Chỉ liên lạc/được duyệt ở ${ok.length}/${k} nút cấp khoá cần thiết. Kiểm tra máy chủ, mạng rồi tải lại.`);
+    for (const a of asked) {
+      const ps = ok.map((x) => x.partials?.[a]).filter((p): p is Partial => !!p);
+      if (ps.length >= k) this.s.keys[a] = combineKey(ps, k);
+    }
+    const ik = ok.find((x) => x.indexKey)?.indexKey;
+    if (ik) this.s.indexKey = ik;
+    return attrs.filter((a) => !this.s.keys[a]);
+  }
+
+  /** Lấy khoá chỉ mục (HMAC mã bệnh nhân/đơn vị) ngay sau khi đăng nhập: cần trước mọi thao tác theo bệnh nhân. Tài khoản không có thuộc tính (Quản trị) thì bỏ qua. */
+  async warmUp(): Promise<void> {
+    if (this.s.indexKey || !this.s.attrs.length) return;
+    await this.ensureKeys([versioned(this.s.attrs[0], await this.epochs())]);
+  }
+
+  // ---------- MFA (TOTP): nhân tố thứ hai, đồng thời là THUỘC TÍNH ABE MED:Auth:MFA (chính sách của Giám sát = Role:GiamSat AND Auth:MFA) ----------
+  /** Trạng thái MFA của phiên: có bắt buộc cho vai trò này không, đã đăng ký chưa, phiên đã xác thực còn hạn chưa. */
+  async mfaStatus(): Promise<{ required: boolean; enrolled: boolean; verified: boolean; freshMinutes: number }> {
+    return (await this.api<{ mfa: { required: boolean; enrolled: boolean; verified: boolean; freshMinutes: number } }>('GET', '/api/v2/auth/mfa')).mfa;
+  }
+  /** Bắt đầu đăng ký MFA (nhập lại mật khẩu). Trả bí mật + URI otpauth (quét mã QR); chưa có hiệu lực đến khi nhập đúng mã đầu tiên bằng mfaVerify. */
+  async mfaEnroll(password: string): Promise<{ secret: string; uri: string }> {
+    return this.api('POST', '/api/v2/auth/mfa/enroll', { password });
+  }
+  /**
+   * Nhập mã 6 số. Đúng => máy chủ cấp thuộc tính MED:Auth:MFA cho phiên này; client làm mới danh sách thuộc tính để xin khoá tương ứng ở lần mở bản ghi kế tiếp.
+   * Hết hạn (mfaFreshMinutes) thì phải nhập lại.
+   */
+  async mfaVerify(code: string): Promise<void> {
+    await this.api('POST', '/api/v2/auth/mfa/verify', { code });
+    await this.refreshAttributes();
+  }
+  /** Làm mới thuộc tính của phiên từ backend (sau khi xác thực MFA hoặc khi MFA hết hạn). Khoá đã có trong bộ nhớ giữ nguyên. */
+  async refreshAttributes(): Promise<string[]> {
+    const me = await this.api<{ attributes?: string[] }>('GET', '/api/v2/auth/me');
+    this.s.attrs = me.attributes ?? [];
+    return this.s.attrs;
+  }
+
+  /** Gọi API v2 của backend bằng phiên hiện tại (quản trị tài khoản, lịch giờ, nhật ký...). */
+  async api<T = Record<string, any>>(method: string, path: string, body?: unknown): Promise<T> {
+    const r = await this.f(`${this.s.storageBase}${path}`, { method, headers: { 'content-type': 'application/json', ...this.auth() }, body: body === undefined ? undefined : JSON.stringify(body) });
+    if (r.status === 401) {
+      // Chỉ "phiên không hợp lệ" mới là hết phiên; 401 của bước xác nhận (STEP_UP_FAILED, MFA_CODE_INVALID, MFA_CODE_REUSED...) là lỗi nghiệp vụ, giữ nguyên mã lỗi.
+      const j = (await r.clone().json().catch(() => ({}))) as { error?: string };
+      if (!j.error || j.error === 'SESSION_INVALID') throw new SessionExpiredError();
+    }
+    return (await json(r)).body as T;
+  }
+
+  /** Chính sách mã hoá của từng mục lấy từ tài liệu policy do registry KÝ (cùng ma trận với kiểm quyền ở backend). */
+  private policyDocCache?: { version: string; abePolicies: Record<string, string>; matrix: PolicyMatrix };
+  private async policyDoc() {
+    if (this.policyDocCache) return this.policyDocCache;
+    const cfg = await this.config();
+    const raw = (await this.get('/api/v2/policy')) as unknown as { payload: string; signature: string };
+    if (!ed25519.verify(hexToBytes(raw.signature), new TextEncoder().encode(POLICY_DOMAIN + raw.payload), hexToBytes(cfg.registryPk))) throw new Error('Chữ ký tài liệu chính sách không hợp lệ');
+    return (this.policyDocCache = JSON.parse(raw.payload) as { version: string; abePolicies: Record<string, string>; matrix: PolicyMatrix });
+  }
+  private async policyForProfile(profile: RecordProfile, dir: EpochDirectory): Promise<string> {
+    if (!this.s.account) return policyFor(profile, dir);
+    // Chế độ tài khoản: policy = Người nhập (MED:Author:<userId>) HOẶC (Bác sĩ VÀ chuyên khoa); sinh từ tài liệu policy đã ký, cùng nguồn với kiểm quyền ở backend.
+    const m = (await this.policyDoc()).matrix;
+    return appPolicyString(m, profile.type, khoasForType(m, profile.type, profile.khoa), profile.authorUserId, (a) => versioned(a, dir));
+  }
+
+  /** Mã khoa chuẩn (theo danh mục trong tài liệu policy đã ký) của một mục sắp ghi; loại không dùng khoa => 'KSK'. Ở chế độ thiết bị: giữ nguyên. */
+  private async canonKhoa(type: RecordType, raw: string): Promise<string> {
+    if (!this.s.account) return raw;
+    const m = (await this.policyDoc()).matrix;
+    const ks = khoasForType(m, type, raw);
+    return ks.length ? ks.join(',') : 'KSK';
+  }
+
   /** Bảo đảm có khoá cho các thuộc tính (đã phiên bản) cần dùng; hỏi >= k nút đồng thuận. Trả về các thuộc tính vẫn thiếu. */
   async ensureKeys(attrs: string[]): Promise<string[]> {
+    if (this.s.account) return this.ensureKeysAccount(attrs);
     const generation = this.begin();
     const k = (await this.config()).k;
     let missing = [...new Set(attrs)].filter((a) => !this.s.keys[a]);
@@ -290,24 +479,26 @@ export class MedClient {
    * `group` (mã đơn vị/trường/công ty) chỉ nên dùng cho mục hành chính: máy chủ lưu HMAC của nó để liệt kê danh sách
    * theo đơn vị mà không biết đơn vị nào (chỉ biết "các bản ghi cùng nhóm").
    */
-  async saveRecord(input: { patientCode: string; type: RecordType; khoa: string; data: unknown; group?: string; dob?: string }): Promise<string> {
+  async saveRecord(input: { patientCode: string; type: RecordType; khoa: string; data: unknown; group?: string; name?: string; refId?: string; bind?: Record<string, unknown>; tags?: string[]; id?: string }): Promise<string> {
     const generation = this.begin();
     if (input.type === 'hanhchinh') return (await this.saveMany([{ ...input, type: 'hanhchinh' }]))[0]; // dùng header chung
     const [cfg, dir] = await Promise.all([this.config(), this.epochs()]);
     const patientIdx = this.patientIdx(input.patientCode);
     const groupIdx = input.group ? this.groupIdx(input.group) : undefined;
-    const id = crypto.randomUUID();
-    const profile: RecordProfile = { type: input.type, khoa: input.khoa, patientIdx, authorDevice: this.s.deviceId };
+    const id = input.id ?? crypto.randomUUID();
+    const khoa = await this.canonKhoa(input.type, input.khoa);
+    const profile: RecordProfile = { type: input.type, khoa, patientIdx, authorDevice: this.s.deviceId, authorUserId: this.s.account?.userId };
     const body = JSON.stringify({
       data: input.data, ts: new Date().toISOString(),
-      author: { name: this.s.name, gid: this.s.gid, deviceId: this.s.deviceId, devicePub: this.s.devicePub, cert: this.s.cert },
+      ...(this.s.account ? { khoa, ...(input.refId ? { refId: input.refId } : {}), ...(input.bind ? { bind: input.bind } : {}), ...(input.tags?.length ? { tags: input.tags } : {}) } : {}),
+      author: { name: this.s.name, gid: this.s.gid, deviceId: this.s.deviceId, devicePub: this.s.devicePub, cert: this.s.cert, ...(this.s.account ? { userId: this.s.account.userId } : {}) },
     });
     const sig = await signWithDevice(this.dk, `${id}|${patientIdx}|${input.type}|${body}`);
     const dek = crypto.getRandomValues(new Uint8Array(32));
-    const dob = await this.dobFor(input.patientCode, patientIdx, input.dob); this.check(generation);
-    const envelope = await encrypt({ MED: cfg.pk }, policyFor(profile, dir), new TextEncoder().encode(JSON.stringify({ body, sig })), `${patientIdx}|${input.type}|${id}`, dek);
-    const parent = await this.forParent(input.patientCode, dob, id, dek); this.check(generation);
-    await json(await this.f(`${this.s.storageBase}/api/records`, post({ id, patientIdx, groupIdx, type: input.type, khoa: input.khoa, authorDevice: this.s.deviceId, envelope, ...parent }, this.auth())));
+    const pname = await this.nameFor(input.patientCode, patientIdx, input.name); this.check(generation);
+    const envelope = await encrypt({ MED: cfg.pk }, await this.policyForProfile(profile, dir), new TextEncoder().encode(JSON.stringify({ body, sig })), `${patientIdx}|${input.type}|${id}`, dek);
+    const parent = await this.forParent(input.patientCode, pname, id, dek); this.check(generation);
+    await json(await this.f(`${this.s.storageBase}/api/records`, post({ id, patientIdx, groupIdx, type: input.type, khoa, authorDevice: this.s.deviceId, envelope, ...(input.refId ? { refId: input.refId } : {}), ...parent }, this.auth())));
     return id;
   }
 
@@ -329,7 +520,7 @@ export class MedClient {
   /** Lấy (hoặc tạo) header chung cho chính sách này; trả về DEK để mã hoá các bản ghi của lô. */
   private async sharedHeader(profile: RecordProfile, dir: EpochDirectory): Promise<{ id: string; dek: Uint8Array }> {
     const generation = this.begin();
-    const policy = policyFor(profile, dir);
+    const policy = await this.policyForProfile(profile, dir);
     this.s.shared ??= {};
     const known = this.s.shared[policy];
     if (known) {
@@ -358,7 +549,7 @@ export class MedClient {
    * Lưu hàng loạt mục HÀNH CHÍNH (vd nhập Excel cả trường): chỉ tốn MỘT phép ABE cho cả lô vì các bản ghi cùng chính sách dùng
    * chung một header; mỗi bản ghi vẫn có chữ ký số riêng và khoá con riêng.
    */
-  async saveMany(inputs: { patientCode: string; type: RecordType; khoa: string; data: unknown; group?: string; dob?: string }[], onProgress?: (done: number, total: number) => void): Promise<string[]> {
+  async saveMany(inputs: { patientCode: string; type: RecordType; khoa: string; data: unknown; group?: string; name?: string }[], onProgress?: (done: number, total: number) => void): Promise<string[]> {
     const generation = this.begin();
     return this.withEpochScope(async () => {
       const dir = await this.epochs();
@@ -374,19 +565,21 @@ export class MedClient {
         this.check(generation);
         const patientIdx = this.patientIdx(input.patientCode);
         if (input.type === 'hanhchinh') this.learnPatient(patientIdx, input.data);
-        const dob = await this.dobFor(input.patientCode, patientIdx, input.dob);
-        const profile: RecordProfile = { type: input.type, khoa: input.khoa, patientIdx, authorDevice: this.s.deviceId, bulk: true };
-        const hk = `${input.type}|${input.khoa}`;
+        const pname = await this.nameFor(input.patientCode, patientIdx, input.name);
+        const khoa = await this.canonKhoa(input.type, input.khoa);
+        const profile: RecordProfile = { type: input.type, khoa, patientIdx, authorDevice: this.s.deviceId, bulk: true, authorUserId: this.s.account?.userId };
+        const hk = `${input.type}|${khoa}`;
         let header = headers.get(hk);
         if (!header) { header = await this.sharedHeader(profile, dir); headers.set(hk, header); }
         const id = crypto.randomUUID();
         const body = JSON.stringify({
           data: input.data, ts: new Date().toISOString(),
-          author: { name: this.s.name, gid: this.s.gid, deviceId: this.s.deviceId, devicePub: this.s.devicePub, cert: this.s.cert },
+          ...(this.s.account ? { khoa } : {}),
+          author: { name: this.s.name, gid: this.s.gid, deviceId: this.s.deviceId, devicePub: this.s.devicePub, cert: this.s.cert, ...(this.s.account ? { userId: this.s.account.userId } : {}) },
         });
         const sig = await signWithDevice(this.dk, `${id}|${patientIdx}|${input.type}|${body}`);
         const envelope = await encryptShared(header.dek, header.id, id, new TextEncoder().encode(JSON.stringify({ body, sig })), `${patientIdx}|${input.type}|${id}`);
-        batch.push({ id, patientIdx, groupIdx: input.group ? this.groupIdx(input.group) : undefined, type: input.type, khoa: input.khoa, authorDevice: this.s.deviceId, envelope, ...(await this.forParent(input.patientCode, dob, id, sharedRecordKey(header.dek, id))) });
+        batch.push({ id, patientIdx, groupIdx: input.group ? this.groupIdx(input.group) : undefined, type: input.type, khoa, authorDevice: this.s.deviceId, envelope, ...(await this.forParent(input.patientCode, pname, id, sharedRecordKey(header.dek, id))) });
         ids.push(id);
         if (batch.length >= 100) await flush();
         onProgress?.(ids.length, inputs.length);
@@ -397,35 +590,34 @@ export class MedClient {
     });
   }
 
-  // ---------- tra cứu của phụ huynh (CCCD + ngày sinh) ----------
+  // ---------- tra cứu của phụ huynh (CCCD + họ tên) ----------
   /** patientIdx -> (mã bệnh nhân, ngày sinh) học được từ mục Hành chính đã lưu/giải mã trong phiên. Chỉ nằm trong bộ nhớ. */
-  private patients = new Map<string, { code: string; dob: string }>();
+  private patients = new Map<string, { code: string; name: string }>();
 
   /** Ghi nhớ ngày sinh từ dữ liệu Hành chính (chỉ khi CCCD trong dữ liệu khớp đúng chỉ mục của bản ghi). */
   private learnPatient(patientIdx: string, data: unknown) {
-    const d = data as { cccd?: unknown; ngaySinh?: unknown } | undefined;
-    const dob = normDob(String(d?.ngaySinh ?? ''));
+    const d = data as { cccd?: unknown; hoTen?: unknown } | undefined;
+    const name = String(d?.hoTen ?? '');
     const code = String(d?.cccd ?? '');
-    if (dob && code && this.patientIdx(code) === patientIdx) this.patients.set(patientIdx, { code, dob });
+    if (validName(name) && code && this.patientIdx(code) === patientIdx) this.patients.set(patientIdx, { code, name });
   }
 
-  /** Ngày sinh để bọc khoá cho phụ huynh: tham số truyền vào > đã nhớ trong phiên > tự mở mục Hành chính mới nhất của người đó. '' = không biết. */
-  private async dobFor(patientCode: string, patientIdx: string, given?: string): Promise<string> {
-    const g = normDob(given ?? '');
-    if (g) return g;
-    const known = this.patients.get(patientIdx)?.dob;
+  /** Họ tên để bọc khoá cho phụ huynh: tham số truyền vào > đã nhớ trong phiên > tự mở mục Hành chính mới nhất của người đó. '' = không biết. */
+  private async nameFor(patientCode: string, patientIdx: string, given?: string): Promise<string> {
+    if (validName(given ?? '')) return normName(given!);
+    const known = this.patients.get(patientIdx)?.name;
     if (known) return known;
     try {
       const hc = (await this.listRecords(patientCode)).filter((r) => r.type === 'hanhchinh').sort((a, b) => a.createdAt.localeCompare(b.createdAt)).pop();
-      if (hc) await this.openRecord(hc);           // openRecord tự ghi nhớ ngày sinh
+      if (hc) await this.openRecord(hc);           // openRecord tự ghi nhớ họ tên
     } catch { /* không mở được: bản ghi này không có đường tra cứu cho phụ huynh */ }
-    return this.patients.get(patientIdx)?.dob ?? '';
+    return this.patients.get(patientIdx)?.name ?? '';
   }
 
-  /** Bản bọc khoá nội dung cho phụ huynh + chỉ mục tra cứu, gửi kèm bản ghi. Không biết ngày sinh => không bọc (phụ huynh không thấy bản ghi này). */
-  private async forParent(patientCode: string, dob: string, recordId: string, contentKey: Uint8Array): Promise<{ parentIdx?: string; parentWrap?: ParentWrap }> {
-    if (!dob) return {};
-    return { parentIdx: parentIdxOf(patientCode, dob), parentWrap: await wrapForParent(patientCode, dob, recordId, contentKey) };
+  /** Bản bọc khoá nội dung cho phụ huynh + chỉ mục tra cứu, gửi kèm bản ghi. Không biết họ tên => không bọc (phụ huynh không thấy bản ghi này). */
+  private async forParent(patientCode: string, name: string, recordId: string, contentKey: Uint8Array): Promise<{ parentIdx?: string; parentWrap?: ParentWrap }> {
+    if (!name) return {};
+    return { parentIdx: parentIdxOf(patientCode, name), parentWrap: await wrapForParent(patientCode, name, recordId, contentKey) };
   }
 
   /** Khoá nội dung của một bản ghi (người gọi phải đọc được bản ghi theo ABE). null = không đủ quyền. */
@@ -445,20 +637,20 @@ export class MedClient {
   }
 
   /**
-   * Cập nhật lại đường tra cứu của phụ huynh (CCCD + ngày sinh) cho MỌI bản ghi của một đơn vị: dùng cho dữ liệu lưu từ trước khi đổi cách tra
-   * cứu, hoặc sau khi sửa ngày sinh. Máy này giải mã khoá nội dung bằng ABE rồi bọc thêm dưới khoá gia đình; dữ liệu mã hoá giữ nguyên.
+   * Cập nhật lại đường tra cứu của phụ huynh (CCCD + họ tên) cho MỌI bản ghi của một đơn vị: dùng cho dữ liệu lưu từ trước khi đổi cách tra
+   * cứu, hoặc sau khi sửa họ tên. Máy này giải mã khoá nội dung bằng ABE rồi bọc thêm dưới khoá gia đình; dữ liệu mã hoá giữ nguyên.
    * Trả về các patientIdx đã cập nhật (để gửi lại lên cổng Bộ Y tế).
    */
-  async refreshParentAccess(group: string, onProgress?: (done: number, total: number) => void): Promise<{ updated: number; patients: Set<string>; noDob: number }> {
+  async refreshParentAccess(group: string, onProgress?: (done: number, total: number) => void): Promise<{ updated: number; patients: Set<string>; noName: number }> {
     const generation = this.begin();
     const hcRows = await this.listGroup(group, 'hanhchinh');
-    await this.openMany(hcRows);                                // ghi nhớ CCCD + ngày sinh của cả đơn vị
+    await this.openMany(hcRows);                                // ghi nhớ CCCD + họ tên của cả đơn vị
     const rows: RecordRow[] = [...hcRows];
     for (const t of SECTION_TYPES) if (t !== 'hanhchinh') rows.push(...(await this.listGroup(group, t)));
     this.check(generation);
     const items: { id: string; parentIdx: string; parentWrap: ParentWrap }[] = [];
     const patients = new Set<string>();
-    let noDob = 0, done = 0, updated = 0;
+    let noName = 0, done = 0, updated = 0;
     const flush = async () => {
       if (!items.length) return;
       const res = await json(await this.f(`${this.s.storageBase}/api/records/parent-wraps`, { method: 'PUT', headers: { 'content-type': 'application/json', ...this.auth() }, body: JSON.stringify({ items: items.splice(0) }) }));
@@ -466,20 +658,21 @@ export class MedClient {
     };
     for (const r of rows) {
       this.check(generation);
+      if (!r.envelope) continue;
       const who = this.patients.get(r.patientIdx);
-      if (!who) noDob++;
+      if (!who) noName++;
       else {
-        const idx = parentIdxOf(who.code, who.dob);
+        const idx = parentIdxOf(who.code, who.name);
         if (r.parentIdx !== idx || !r.parentWrap) {
           const key = await this.contentKeyOf(r).catch(() => null);
-          if (key) { items.push({ id: r.id, parentIdx: idx, parentWrap: await wrapForParent(who.code, who.dob, r.id, key) }); patients.add(r.patientIdx); }
+          if (key) { items.push({ id: r.id, parentIdx: idx, parentWrap: await wrapForParent(who.code, who.name, r.id, key) }); patients.add(r.patientIdx); }
         }
       }
       if (items.length >= 200) await flush();
       onProgress?.(++done, rows.length);
     }
     await flush();
-    return { updated, patients, noDob };
+    return { updated, patients, noName };
   }
 
   // ---------- liên thông Bộ Y tế (cổng mô phỏng) ----------
@@ -495,7 +688,7 @@ export class MedClient {
     const raw = body === undefined ? '' : JSON.stringify(body);
     const ts = String(Date.now());
     const sig = await signWithDevice(this.dk, `byt|${method}|${path}|${ts}|${bytesToHex(sha256(new TextEncoder().encode(raw)))}`);
-    const device = btoa(JSON.stringify({ gid: this.s.gid, devicePub: this.s.devicePub, cert: this.s.cert }));
+    const device = btoa(JSON.stringify({ gid: this.s.gid, devicePub: this.s.devicePub, cert: this.s.cert, ...(this.s.account ? { userId: this.s.account.userId, deviceId: this.s.deviceId } : {}) }));
     const r = await this.f(url + path, { method, headers: { 'content-type': 'application/json', 'x-device': device, 'x-ts': ts, 'x-sig': sig }, body: raw || undefined, signal: AbortSignal.timeout(30000) });
     return (await json(r)).body;
   }
@@ -551,13 +744,23 @@ export class MedClient {
 
   /** Chính sách truy cập của bản ghi (công khai), kể cả khi nằm trong header chung. */
   async policyOf(rec: RecordRow, fresh = false): Promise<string> {
+    if (!rec.envelope) return '(không đủ quyền xem)';
     if (rec.envelope.v !== 3) return rec.envelope.abe.policy;
     if (fresh) this.headers.delete(rec.envelope.headerId); // bỏ bản lưu tạm: lấy chính sách hiện hành trên máy chủ
     return (await this.getHeader(rec.envelope.headerId)).policy;
   }
 
+  /** patientIdx -> số mục của hồ sơ mà backend KHÔNG trả vì tài khoản không được xem (chỉ số lượng, không lộ loại/khoa/nội dung). */
+  private restricted = new Map<string, number>();
+  /** Hồ sơ này còn bao nhiêu mục tài khoản KHÔNG được xem (sau lần listRecords gần nhất). Dùng để giao diện báo rõ, tránh hiểu nhầm phần trống là bình thường. */
+  restrictedCount(patientCode: string): number { return this.restricted.get(this.patientIdx(patientCode)) ?? 0; }
+
   async listRecords(patientCode: string): Promise<RecordRow[]> {
-    return (await this.get(`/api/records?patientIdx=${this.patientIdx(patientCode)}`)) as unknown as RecordRow[];
+    const idx = this.patientIdx(patientCode);
+    const res = await this.f(`${this.s.storageBase}/api/records?patientIdx=${idx}`, { headers: this.auth() });
+    const rows = (await json(res)).body as unknown as RecordRow[];
+    this.restricted.set(idx, Number(res.headers.get('x-restricted-count') ?? 0) || 0);
+    return rows;
   }
 
   /** Danh sách bản ghi của một đơn vị (mặc định mục hành chính) - dùng cho lưới danh sách. */
@@ -571,6 +774,15 @@ export class MedClient {
     return `${v.n}|${v.last}`;
   }
 
+  /**
+   * Dấu vân tay hồ sơ MỘT bệnh nhân (chỉ tính các mục tài khoản này được xem; không ghi nhật ký, rất nhẹ): đổi giá trị nghĩa là có người vừa nhập/sửa/xoá.
+   * App tra cứu hỏi mỗi vài giây; đổi thì mới tải và giải mã lại.
+   */
+  async patientVersion(patientCode: string): Promise<string> {
+    const v = (await this.get(`/api/records/version?patientIdx=${this.patientIdx(patientCode)}`)) as unknown as { n: number; last: string };
+    return `${v.n}|${v.last}`;
+  }
+
   /** Chỉ chủ bản ghi (thiết bị đã tạo) mới xoá được; máy chủ ghi nhật ký. */
   async deleteRecord(id: string): Promise<void> {
     await json(await this.f(`${this.s.storageBase}/api/records/${id}`, { method: 'DELETE', headers: this.auth() }));
@@ -580,7 +792,7 @@ export class MedClient {
   async openMany(rows: RecordRow[], onProgress?: (done: number, total: number) => void): Promise<(OpenResult | null)[]> {
     const generation = this.begin();
     this.deniedHeaders.clear();
-    await this.fetchHeaders(rows.flatMap((r) => (r.envelope.v === 3 ? [r.envelope.headerId] : [])));
+    await this.fetchHeaders(rows.flatMap((r) => (r.envelope?.v === 3 ? [r.envelope.headerId] : [])));
     return this.withEpochScope(async () => {
       const out: (OpenResult | null)[] = [];
       for (const r of rows) {
@@ -608,6 +820,7 @@ export class MedClient {
 
   /** null = không đủ quyền. Ném lỗi nếu bản ghi bị can thiệp (đồng thời báo SIEM). */
   async openRecord(rec: RecordRow): Promise<OpenResult | null> {
+    if (!rec.envelope || (rec as { denied?: boolean }).denied) return null;       // backend không trả bản mã cho người sai quyền: hiện khoá
     const generation = this.begin();
     const ctx = `${rec.patientIdx}|${rec.type}|${rec.id}`;
     let plain: Uint8Array | null;
@@ -653,26 +866,32 @@ export class MedClient {
     }
     this.check(generation);
     const { body, sig } = JSON.parse(new TextDecoder().decode(plain)) as { body: string; sig: string };
-    const parsed = JSON.parse(body) as { data: unknown; author: { name: string; gid: string; deviceId: string; devicePub: string; cert: string } };
+    const parsed = JSON.parse(body) as { data: unknown; khoa?: string; refId?: string; bind?: Record<string, unknown>; author: { name: string; gid: string; deviceId: string; devicePub: string; cert: string; userId?: string } };
     const cfg = await this.config();
     const a = parsed.author;
-    const certOk = ed25519.verify(hexToBytes(a.cert), gidMessage(a.gid, a.devicePub), hexToBytes(cfg.registryPk));
-    const sigOk = certOk && a.deviceId === rec.authorDevice && (await verifySig(a.devicePub, `${rec.id}|${rec.patientIdx}|${rec.type}|${body}`, sig));
+    const certOk = ed25519.verify(hexToBytes(a.cert), a.userId ? new TextEncoder().encode(certMessage(a.userId, a.gid, a.deviceId, a.devicePub)) : gidMessage(a.gid, a.devicePub), hexToBytes(cfg.registryPk));   // chứng chỉ tài khoản gắn userId + GID + thiết bị + khoá
+    // Chữ ký phải khớp: thiết bị tạo, TÀI KHOẢN tác giả (backend gán == người ký trong chứng chỉ), khoa/refId máy chủ trả về == khoa/refId nằm trong phần ĐÃ KÝ (phát hiện sửa nhãn / tráo ngữ cảnh).
+    const metaOk = (rec.authorUserId === undefined || a.userId === undefined || rec.authorUserId === a.userId)
+      && (parsed.khoa === undefined || parsed.khoa === rec.khoa) && (parsed.refId ?? null) === (rec.refId ?? null);
+    const sigOk = certOk && metaOk && a.deviceId === rec.authorDevice && (await verifySig(a.devicePub, `${rec.id}|${rec.patientIdx}|${rec.type}|${body}`, sig));
 
     // Tự bọc lại khoá nếu policy đã lỗi thời so với epoch hiện hành (thu hồi / hết hạn phá-vỡ-kính / sang tuần mới).
     let rewrapped = false;
     const dir = await this.epochs();
-    const profile: RecordProfile = { type: rec.type, khoa: rec.khoa, patientIdx: rec.patientIdx, authorDevice: rec.authorDevice, bulk: rec.envelope.v === 3 };
-    if (rec.envelope.v === 3) {
+    const profile: RecordProfile = { type: rec.type, khoa: rec.khoa, patientIdx: rec.patientIdx, authorDevice: rec.authorDevice, bulk: rec.envelope.v === 3, authorUserId: rec.authorUserId };
+    if (!sigOk) {
+      // Bản ghi nghi ngờ (sai chữ ký / sai nhãn): KHÔNG bọc lại khoá, để người dùng thấy cảnh báo thay vì củng cố bản bị sửa.
+    } else if (rec.envelope.v === 3) {
       // Bản ghi dùng header chung: chỉ cần bọc lại MỘT header cho cả lô (một lần mỗi phiên).
       const h = this.headers.get(sharedHeaderId!)!;
-      if (!this.rewrappedHeaders.has(h.id) && isStale(h.policy, profile, dir)) {
-        const nh = await rewrapKeyHeader({ MED: cfg.pk }, policyFor(profile, dir), sharedDek!);
+      const wantPolicy = await this.policyForProfile(profile, dir);
+      if (!this.rewrappedHeaders.has(h.id) && h.policy !== wantPolicy) {
+        const nh = await rewrapKeyHeader({ MED: cfg.pk }, wantPolicy, sharedDek!);
         const r = await this.f(`${this.s.storageBase}/api/headers/${h.id}`, { method: 'PUT', headers: { 'content-type': 'application/json', ...this.auth() }, body: JSON.stringify(nh) });
         if (r.ok) { this.headers.set(h.id, { id: h.id, ...nh }); this.rewrappedHeaders.add(h.id); rewrapped = true; }
       }
-    } else if (isStale(rec.envelope.abe.policy, profile, dir)) {
-      const re = await rewrap(this.s.gid, this.s.keys, rec.envelope, { MED: cfg.pk }, policyFor(profile, dir));
+    } else if (rec.envelope.abe.policy !== (await this.policyForProfile(profile, dir))) {
+      const re = await rewrap(this.s.gid, this.s.keys, rec.envelope, { MED: cfg.pk }, await this.policyForProfile(profile, dir));
       if (re) {
         const r = await this.f(`${this.s.storageBase}/api/records/${rec.id}/header`, { method: 'PUT', headers: { 'content-type': 'application/json', ...this.auth() }, body: JSON.stringify(re) });
         rewrapped = r.ok;
@@ -680,11 +899,12 @@ export class MedClient {
     }
     this.check(generation);
     if (rec.type === 'hanhchinh' && sigOk) this.learnPatient(rec.patientIdx, parsed.data);
-    return { data: parsed.data, author: { name: a.name, deviceId: a.deviceId }, signatureValid: sigOk, rewrapped };
+    return { data: parsed.data, author: { name: a.name, deviceId: a.deviceId, userId: a.userId }, signatureValid: sigOk, rewrapped, signed: { khoa: parsed.khoa, refId: parsed.refId, bind: parsed.bind } };
   }
 
   /** Phá vỡ kính: kích hoạt ở TẤT CẢ nút (mỗi nút đều ghi log + bắn cảnh báo). Cần >= k nút chấp nhận. */
   async breakGlass(patientCode: string, reason: string): Promise<number> {
+    if (this.s.account) throw new Error('Phá vỡ kính chưa có trong chế độ tài khoản (đã bỏ nhánh "phá vỡ kính" khỏi chính sách).');
     const generation = this.begin();
     const k = (await this.config()).k;
     const patientIdx = this.patientIdx(patientCode);

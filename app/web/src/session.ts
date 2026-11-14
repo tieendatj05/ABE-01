@@ -2,7 +2,8 @@
 // và buộc vào phần cứng máy; kho khoá (vault) là file trong thư mục dữ liệu của app. Chạy trong trình duyệt (chỉ để phát
 // triển) thì dùng IndexedDB + localStorage với khoá không xuất ra được.
 import { loadOrCreateDeviceKeys, openVault, sealVault, type DeviceKeys, type KeyStore, type SealedVault } from '../../../security/src/index.js';
-import { MedClient, type ClientState } from '../../../security/src/index.js';
+import { MedClient, SessionExpiredError, type ClientState } from '../../../security/src/index.js';
+import { IdbDeviceKeyStore } from '../../research/src/idb-store.js';
 import { bridge, cleanIpcError } from './bridge.js';
 
 const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u));
@@ -69,7 +70,7 @@ const BASE = 'medabe.storage';
 const IDLE_MS = 5 * 60_000;
 
 export const isDesktop = !!bridge;
-const fallbackBase = () => `http://localhost:8090`;
+const fallbackBase = () => (bridge ? 'http://localhost:8090' : `https://${location.hostname || 'localhost'}:8443`);   // trình duyệt: cùng máy với trang đang mở
 export const defaultStorageBase = async () =>
   (bridge ? await bridge.getSetting('storage') : localStorage.getItem(BASE)) ?? fallbackBase();
 export const setStorageBase = async (u: string) => {
@@ -108,6 +109,34 @@ class Session {
     } catch (e) {
       throw new Error(cleanIpcError((e as Error).message));
     }
+  }
+
+  /** Trạng thái giờ làm việc của chế độ tài khoản (cập nhật mỗi lần kiểm tra kết nối). */
+  business: { open: boolean; nextOpenAt: string | null; closesAt: string | null } | null = null;
+  private accountStore = new IdbDeviceKeyStore();
+
+  /**
+   * ĐĂNG NHẬP BẰNG TÀI KHOẢN (email + mật khẩu do công ty cấp). Khoá ký cá nhân của từng người nằm riêng trong kho của máy (không chia sẻ giữa hai người cùng máy);
+   * vai trò/khoa/quyền do máy chủ quyết định. Không còn kho khoá bằng passphrase hay đăng ký thiết bị "nhập tên".
+   */
+  async signIn(storageBase: string, email: string, password: string, newPassword?: string) {
+    const base = storageBase.replace(/\/+$/, '');
+    if (!base) throw new Error('Hãy nhập địa chỉ máy chủ');
+    const c = await MedClient.signIn(base, email, password, this.accountStore, { newPassword });
+    await setStorageBase(base);
+    this.client?.suspendNetwork();
+    this.client = c; c.onDisconnect = () => this.suspendNetwork(); this.autoMode = false; this.pass = ''; this.business = null; this.connectionReady = false;
+    this.touch(); this.emit();
+  }
+
+  /** Đăng xuất: bỏ phiên + khoá khỏi bộ nhớ (backend thu hồi phiên). */
+  async signOut() {
+    const c = this.client;
+    clearTimeout(this.timer); clearTimeout(this.persistTimer);
+    // Thu hồi phiên ở backend TRƯỚC khi ngắt mạng máy khách (sau suspendNetwork() mọi lời gọi đều bị hủy => phiên cũ vẫn sống đến khi hết hạn nhàn rỗi).
+    if (c?.s.account) await c.api('POST', '/api/v2/auth/logout').catch(() => undefined);
+    this.suspendNetwork(); this.client = null; this.pass = ''; this.business = null;
+    this.emit();
   }
 
   /** Đăng ký thiết bị mới với registry rồi nhận khoá từ các nút bằng các mã đã được cấp. */
@@ -198,8 +227,18 @@ class Session {
   async checkConnection() {
     if (!this.client || !this.connectionReady) throw new Error('Chưa kết nối máy chủ KSK');
     const client = this.client, attempt = this.connectionAttempt;
-    try { await client.checkConnection(); }
-    catch (e) { if (attempt === this.connectionAttempt) this.suspendNetwork(); throw e; }
+    try {
+      await client.checkConnection();
+      if (client.s.account) {
+        const b = client.business, was = this.business;
+        this.business = b ? { open: b.open, nextOpenAt: b.nextOpenAt, closesAt: b.closesAt } : null;
+        if (was?.open !== this.business?.open) this.emit();       // đóng/mở cửa: báo giao diện, KHÔNG gỡ màn hình đang nhập
+      }
+    } catch (e) {
+      if (e instanceof SessionExpiredError) { void this.signOut(); throw e; }
+      if (attempt === this.connectionAttempt) this.suspendNetwork();
+      throw e;
+    }
     if (attempt !== this.connectionAttempt || client !== this.client) throw new Error('Phiên kết nối đã thay đổi');
   }
 
@@ -210,6 +249,7 @@ class Session {
   }
 
   lock() {
+    if (this.client?.s.account) { void this.signOut(); return; }       // tài khoản: hết nhàn rỗi = đăng xuất, đăng nhập lại bằng mật khẩu
     if (this.autoMode) return; // tự mở khoá: không có gì để nhập lại
     clearTimeout(this.timer); clearTimeout(this.persistTimer);
     this.suspendNetwork(); this.client = null; this.pass = '';
@@ -217,7 +257,7 @@ class Session {
   }
 
   private async persistNow() {
-    if (!this.client || !this.pass) return;
+    if (!this.client || !this.pass || this.client.s.account) return;       // chế độ tài khoản: không có kho khoá bằng passphrase để lưu
     await writeVault(JSON.stringify(await sealVault(this.client.s, this.pass, await this.deviceKeys())));
   }
   /** Gọi sau mỗi thao tác làm thay đổi khoá/trạng thái; gom lại để không băm PBKDF2 liên tục. */
@@ -228,7 +268,7 @@ class Session {
   touch() {
     clearTimeout(this.timer);
     if (this.autoMode) return;
-    this.timer = setTimeout(() => { void this.persistNow().finally(() => this.lock()); }, IDLE_MS);
+    this.timer = setTimeout(() => { void this.persistNow().finally(() => this.lock()); }, this.client?.s.account ? 30 * 60_000 : IDLE_MS);   // tài khoản: 30 phút không thao tác thì đăng xuất
   }
 }
 

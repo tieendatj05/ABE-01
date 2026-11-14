@@ -4,6 +4,7 @@ import { LAM_SANG, UNITS, type LamSangData } from './data/catalog.js';
 import { UnitSelect } from './UnitSelect.js';
 import { bmi, checkMau, type HanhChinh, type KetLuan, type Mau, type TheLuc } from './model.js';
 import { session } from './session.js';
+import { sachTenAll } from './ten.js';
 import { log, run } from './ui.js';
 
 interface Line {
@@ -30,7 +31,7 @@ export function ReportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
     };
     const open = async (type: 'hanhchinh' | 'thecuc' | 'lamsang' | 'ketluan', key: (r: RecordRow) => string) => {
       const recs = latest(await c.listGroup(unit, type), key);
-      const res = await c.openMany(recs, (d, t) => setProg(`${type} ${d}/${t}`));
+      const res = sachTenAll(await c.openMany(recs, (d, t) => setProg(`${type} ${d}/${t}`)));
       return recs.map((rec, i) => ({ rec, res: res[i] as OpenResult | null }));
     };
     const hc = await open('hanhchinh', (r) => r.patientIdx);
@@ -63,7 +64,7 @@ export function ReportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
     const url = URL.createObjectURL(new Blob(['﻿' + [head.join(','), ...body].join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     Object.assign(document.createElement('a'), { href: url, download: `bao-cao-${unit}.csv` }).click();
     URL.revokeObjectURL(url);
-    log(`Đã xuất ${shown.length} dòng (mở được bằng Excel). Tệp xuất ra là dữ liệu RÕ - hãy bảo quản đúng quy định.`, 'warn');
+    log(`Đã xuất ${shown.length} dòng (dữ liệu rõ).`, 'warn');
   };
   void LAM_SANG;
 
@@ -87,7 +88,7 @@ export function ReportPage({ unit, setUnit }: { unit: string; setUnit: (u: strin
           <thead><tr><th>id</th><th>ngay_kham</th><th>lop</th><th>ho_ten</th><th>gioi_tinh</th><th>ngay_sinh</th><th>so_cccd</th><th>chieu_cao</th><th>can_nang</th><th>chi_so_bmi</th><th>mach</th><th>huyet_ap</th><th>nhikhoa</th><th>mat</th><th>tmh</th><th>rhm</th><th>phan_loai</th></tr></thead>
           <tbody>
             {shown.map((l) => <tr key={l.id + l.cccd}><td>{l.id}</td><td>{l.ngay}</td><td>{l.lop}</td><td>{l.hoTen}</td><td>{l.gioiTinh}</td><td>{l.ngaySinh}</td><td>{l.cccd}</td><td>{l.cao}</td><td>{l.nang}</td><td>{l.bmi}</td><td>{l.mach}</td><td>{l.ha}</td><td>{l.nhi}</td><td>{l.mat}</td><td>{l.tmh}</td><td>{l.rhm}</td><td>{l.loai}</td></tr>)}
-            {!lines && <tr><td colSpan={17} className="muted">Bấm "Tổng hợp" để lập báo cáo. Số liệu được giải mã và ghép ngay trên máy này.</td></tr>}
+            {!lines && <tr><td colSpan={17} className="muted">Bấm Tổng hợp.</td></tr>}
           </tbody>
         </table>
       </div>

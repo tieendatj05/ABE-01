@@ -10,7 +10,7 @@ foreach ($p in 5174, 8090, 8095, 9001, 9002, 9003) {
 Remove-NetFirewallRule -DisplayName 'KSK-Discovery-UDP' -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName 'KSK-Discovery-UDP' -Direction Inbound -Protocol UDP -LocalPort 43821 -Action Allow -Profile Any -RemoteAddress LocalSubnet -EdgeTraversalPolicy Block | Out-Null
 $ip = (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.Status -eq 'Up' } | Select-Object -First 1).IPv4Address.IPAddress
-Write-Host "Xong. Ung dung nhan vien tu tim may chu khi cung LAN. Tren dien thoai mo: http://${ip}:5174"
+Write-Host "Xong. Ung dung nhan vien tu tim may chu khi cung LAN. Tren dien thoai cung WiFi co the mo http://${ip}:5174 de xem thu, NHUNG trinh duyet dien thoai chi giai ma duoc o trang HTTPS. De dung that (ke ca 4G): chay npm run public:tunnel va dung dia chi https cua no. Xem HUONG_DAN_APP_DIEN_THOAI.md"
 
 $taskEmployee = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\release\KSK-NhanVien-win32-x64\KSK-NhanVien.exe'))
 if (Test-Path -LiteralPath $taskEmployee) {

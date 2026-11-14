@@ -20,6 +20,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class LanAccessFilter extends OncePerRequestFilter {
+    /** Chinh sach mang nhieu VLAN (CIDR duoc cap phep). null (vd kiem thu don le) = hanh vi cu: chi cung subnet voi card vat ly. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.medabe.storage.research.NetworkPolicy network;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.medabe.storage.research.NetworkProps netProps;
+
+    /** Yeu cau di qua cong tin cay: dia chi nguon (getRemoteAddr) la IP khach THAT de cac gioi han/nhat ky dung dung nguoi. */
+    private static final class Proxied extends jakarta.servlet.http.HttpServletRequestWrapper {
+        private final String ip;
+        Proxied(HttpServletRequest r, String ip) { super(r); this.ip = ip; setAttribute("medabe.viaProxy", true); }
+        @Override public String getRemoteAddr() { return ip; }
+        @Override public String getRemoteHost() { return ip; }
+    }
+
     private static final Pattern VIRTUAL = Pattern.compile("vmware|virtual|vethernet|vbox|hyper-v|wsl|docker|vpn|tailscale|zerotier|loopback|bluetooth|wireguard|tunnel|tap-|tun[0-9]", Pattern.CASE_INSENSITIVE);
 
     public static String normalizeAddress(String address) {
@@ -42,6 +56,10 @@ public class LanAccessFilter extends OncePerRequestFilter {
         long mask = (0xffffffffL << (32 - prefix)) & 0xffffffffL;
         return (p & mask) == (l & mask);
     }
+    static boolean isLoopbackAddress(String address) {
+        String a = normalizeAddress(address);
+        return a.equals("::1") || a.equals("0:0:0:0:0:0:0:1") || a.startsWith("127.");
+    }
     public static boolean isLanPeer(String address) {
         String peer = normalizeAddress(address);
         long value = ipv4(peer);
@@ -62,7 +80,13 @@ public class LanAccessFilter extends OncePerRequestFilter {
     }
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
-        if (!isLanPeer(request.getRemoteAddr())) {
+        String hdr = netProps == null ? null : netProps.proxyClientHeader();
+        if (hdr != null && !hdr.isBlank() && isLoopbackAddress(request.getRemoteAddr())) {
+            String v = request.getHeader(hdr);
+            if (v != null && v.matches("[0-9a-fA-F:.]{3,45}")) { chain.doFilter(new Proxied(request, v), response); return; }
+        }
+        boolean allowed = network != null ? network.allowed(request.getRemoteAddr()) : isLanPeer(request.getRemoteAddr());
+        if (!allowed) {
             response.setStatus(403); response.setContentType("application/json"); response.setCharacterEncoding("UTF-8");
             response.getWriter().write("{\"error\":\"LAN_ONLY: chi cho phep thiet bi cung mang noi bo\"}");
             return;
